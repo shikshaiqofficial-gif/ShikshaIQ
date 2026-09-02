@@ -10,8 +10,16 @@ import MockTest from './MockTest';
 import AdminPanel from './AdminPanel';
 import Leaderboard from './Leaderboard';
 
-export default function App() {
+// Protected Route wrapper component
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('shiksha_token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
 
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
@@ -24,7 +32,14 @@ export default function App() {
         <Route path="/doubts" element={<DoubtSolver />} />
         <Route path="/mock-test" element={<MockTest />} />
         <Route path="/admin" element={<AdminPanel />} />
-        <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+        <Route
+          path="/leaderboard"
+          element={
+            <ProtectedRoute>
+              <Leaderboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
