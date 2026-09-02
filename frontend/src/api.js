@@ -1,25 +1,26 @@
 import axios from 'axios';
 
-// Always default to your live Render backend in production if VITE_API_BASE_URL is undefined
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || 'https://shikshaiq-api.onrender.com/api';
+let rawBase = import.meta.env.VITE_API_BASE_URL || 'https://shikshaiq-api.onrender.com/api';
+
+// Strip any trailing slashes
+rawBase = rawBase.replace(/\/+$/, '');
+
+// Guarantee '/api' is appended if missing
+if (!rawBase.endsWith('/api')) {
+  rawBase = `${rawBase}/api`;
+}
 
 const API = axios.create({
-  baseURL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: rawBase,
+  withCredentials: true,
 });
 
-API.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('shiksha_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem('shiksha_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 export default API;
