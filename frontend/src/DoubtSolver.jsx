@@ -10,26 +10,27 @@ import {
   Volume2,
   VolumeX,
   Pause,
-  Play,
-  RotateCcw,
-  BookOpen,
+  Upload,
   Image as ImageIcon,
+  X,
   CheckCircle2,
   HelpCircle
 } from 'lucide-react';
 
 export default function DoubtSolver() {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
   const [question, setQuestion] = useState('');
   const [subject, setSubject] = useState('Quantitative Aptitude');
+  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [solution, setSolution] = useState(null);
   const [error, setError] = useState(null);
 
-  // Speech Synthesis (TTS) State
+  // Speech Synthesis
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const speechRef = useRef(null);
 
   const subjects = [
     'Quantitative Aptitude',
@@ -38,7 +39,7 @@ export default function DoubtSolver() {
     'English Comprehension'
   ];
 
-  // Clean up speech synthesis when unmounting or loading new answers
+  // Stop speech synthesis on unmount
   useEffect(() => {
     return () => {
       if (window.speechSynthesis) {
@@ -47,11 +48,49 @@ export default function DoubtSolver() {
     };
   }, []);
 
+  // Handle direct file selection
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size exceeds 5MB. Please upload a smaller screenshot.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Support pasting screenshot from clipboard (Ctrl + V)
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setImagePreview(reader.result);
+          };
+          reader.readAsDataURL(file);
+          break;
+        }
+      }
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleAskDoubt = async (e) => {
     e?.preventDefault();
-    if (!question.trim() || loading) return;
+    if ((!question.trim() && !imagePreview) || loading) return;
 
-    // Stop ongoing speech if asking a new question
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
@@ -65,23 +104,23 @@ export default function DoubtSolver() {
 
       const res = await API.post('/doubts/solve', {
         question: question.trim(),
-        subject
+        subject,
+        imageBase64: imagePreview
       });
 
       if (res.data?.solution) {
         setSolution(res.data.solution);
       } else {
-        setError('No explanation could be generated. Please try phrasing your question clearly.');
+        setError('No explanation could be generated. Please ensure your image is legible.');
       }
     } catch (err) {
       console.error('Doubt solving failed:', err);
-      setError(err.response?.data?.message || 'Server error while resolving doubt. Please try again.');
+      setError(err.response?.data?.message || 'Server error resolving doubt. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Text-to-Speech Controller
   const handleToggleSpeech = () => {
     if (!window.speechSynthesis) {
       alert('Speech synthesis is not supported on this browser.');
@@ -100,19 +139,19 @@ export default function DoubtSolver() {
       return;
     }
 
-    // Prepare plain text: strip markdown characters for natural voice reading
     const cleanText = solution
       .replace(/[#*`_\[\]()]/g, ' ')
       .replace(/\n+/g, '. ')
       .replace(/\s+/g, ' ');
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.95; // comfortable study cadence
+    utterance.rate = 0.95;
     utterance.pitch = 1.0;
 
-    // Attempt Indian English voice selection if available in browser
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => v.lang.includes('en-IN') || v.name.includes('India')) || voices.find(v => v.lang.startsWith('en'));
+    const preferredVoice =
+      voices.find((v) => v.lang.includes('en-IN') || v.name.includes('India')) ||
+      voices.find((v) => v.lang.startsWith('en'));
     if (preferredVoice) utterance.voice = preferredVoice;
 
     utterance.onend = () => {
@@ -125,7 +164,6 @@ export default function DoubtSolver() {
       setIsPaused(false);
     };
 
-    speechRef.current = utterance;
     window.speechSynthesis.speak(utterance);
     setIsSpeaking(true);
     setIsPaused(false);
@@ -152,18 +190,18 @@ export default function DoubtSolver() {
           </button>
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-purple-400" />
-            <h1 className="font-bold text-lg">AI Doubt Resolution Mentor</h1>
+            <h1 className="font-bold text-lg">AI Multimodal Doubt Solver</h1>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
         
-        {/* Input Card */}
+        {/* Question & Image Input Card */}
         <div className="bg-slate-800/70 border border-slate-700/70 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-300">Select Subject Focus:</span>
+            <span className="text-xs font-semibold text-slate-300">Target Subject:</span>
             <div className="flex gap-2 overflow-x-auto">
               {subjects.map((sub) => (
                 <button
@@ -182,30 +220,68 @@ export default function DoubtSolver() {
             </div>
           </div>
 
-          <form onSubmit={handleAskDoubt} className="space-y-4">
+          <form onSubmit={handleAskDoubt} onPaste={handlePaste} className="space-y-4">
             <textarea
-              rows="4"
+              rows="3"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Type your exam question, formula query, or problem statement here..."
+              placeholder="Type your question or formula query here (you can also paste an image with Ctrl+V)..."
               className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 leading-relaxed resize-none"
             ></textarea>
 
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                <HelpCircle className="w-3.5 h-3.5 text-purple-400" />
-                <span>Powered by Gemini 3.6 Flash for step-by-step reasoning & short-tricks.</span>
-              </span>
+            {/* Hidden native file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageChange}
+              accept="image/*"
+              className="hidden"
+            />
+
+            {/* Image Preview Thumbnail */}
+            {imagePreview && (
+              <div className="relative w-fit bg-slate-900 p-2 rounded-xl border border-purple-500/40">
+                <img
+                  src={imagePreview}
+                  alt="Uploaded Diagram"
+                  className="max-h-48 rounded-lg object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute -top-2 -right-2 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-500 transition shadow-lg cursor-pointer"
+                  title="Remove Image"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Action Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-300 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <ImageIcon className="w-4 h-4 text-purple-400" />
+                  <span>{imagePreview ? 'Change Screenshot' : 'Attach Diagram / Screenshot'}</span>
+                </button>
+                <span className="text-[11px] text-slate-400 hidden sm:inline">
+                  Supports JPG, PNG, WebP (or paste via Ctrl+V)
+                </span>
+              </div>
 
               <button
                 type="submit"
-                disabled={loading || !question.trim()}
-                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-purple-900/30 cursor-pointer"
+                disabled={loading || (!question.trim() && !imagePreview)}
+                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30 cursor-pointer"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analyzing...</span>
+                    <span>Analyzing Image & Question...</span>
                   </>
                 ) : (
                   <>
@@ -224,7 +300,7 @@ export default function DoubtSolver() {
           </div>
         )}
 
-        {/* Solution Container */}
+        {/* Detailed Solution Box */}
         {solution && (
           <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-6 shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-700/60">
@@ -233,8 +309,8 @@ export default function DoubtSolver() {
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">Step-by-Step Solution Breakdown</h3>
-                  <p className="text-[11px] text-slate-400">Review the pedagogical steps and formulas below</p>
+                  <h3 className="font-bold text-sm text-white">Visual Derivation & Explanation</h3>
+                  <p className="text-[11px] text-slate-400">Step-by-step breakdown formulated by Gemini</p>
                 </div>
               </div>
 
@@ -244,7 +320,6 @@ export default function DoubtSolver() {
                   type="button"
                   onClick={handleToggleSpeech}
                   className="flex items-center gap-1.5 text-xs font-medium text-purple-300 hover:text-purple-200 transition cursor-pointer"
-                  title={isSpeaking && !isPaused ? "Pause Audio" : "Listen to Solution"}
                 >
                   {isSpeaking && !isPaused ? (
                     <>
@@ -254,7 +329,7 @@ export default function DoubtSolver() {
                   ) : (
                     <>
                       <Volume2 className="w-3.5 h-3.5" />
-                      <span>{isPaused ? "Resume Voice" : "Listen Audio"}</span>
+                      <span>{isPaused ? 'Resume Voice' : 'Listen Audio'}</span>
                     </>
                   )}
                 </button>
