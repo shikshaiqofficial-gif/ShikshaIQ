@@ -206,7 +206,9 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
   }
 });
 
-// --- MOCK TEST ROUTES ---
+// --- QUESTION MANAGEMENT ROUTES ---
+
+// Get Questions (Random sample or filtered)
 app.get('/api/questions', async (req, res) => {
   try {
     const { exam, limit = 20 } = req.query;
@@ -221,7 +223,67 @@ app.get('/api/questions', async (req, res) => {
   }
 });
 
-// Submit Mock Test and Calculate Score
+// Create a New Question (Admin)
+app.post('/api/questions', async (req, res) => {
+  try {
+    const { 
+      exam, 
+      subject, 
+      questionText, 
+      options, 
+      correctOptionIndex, 
+      explanation, 
+      difficulty, 
+      marks, 
+      negativeMarks 
+    } = req.body;
+
+    if (!exam || !subject || !questionText || !options || options.length < 2 || correctOptionIndex === undefined) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Exam, subject, question text, at least 2 options, and correct option index are required.' 
+      });
+    }
+
+    const newQuestion = await Question.create({
+      exam,
+      subject,
+      questionText,
+      options,
+      correctOptionIndex: parseInt(correctOptionIndex, 10),
+      explanation: explanation || 'No explanation provided.',
+      difficulty: difficulty || 'Moderate',
+      marks: marks !== undefined ? Number(marks) : 2,
+      negativeMarks: negativeMarks !== undefined ? Number(negativeMarks) : 0.5
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Question added successfully!',
+      question: newQuestion
+    });
+  } catch (error) {
+    console.error('Error adding question:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Delete a Question by ID (Admin)
+app.delete('/api/questions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Question.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Question not found.' });
+    }
+    res.json({ success: true, message: 'Question deleted successfully!' });
+  } catch (error) {
+    console.error('Error deleting question:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// --- MOCK TEST SUBMISSION ROUTE ---
 app.post('/api/tests/submit', verifyToken, async (req, res) => {
   try {
     const { exam, answers, timeTakenSeconds } = req.body; 
@@ -309,7 +371,6 @@ app.post('/api/doubts/solve', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide a question or an image.' });
     }
 
-    // Updated model targeting gemini-3.6-flash
     const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
     const systemPrompt = `You are the expert tutor of Shiksha IQ, specializing in competitive exams (SSC CGL, CHSL, RRB NTPC, Banking). 

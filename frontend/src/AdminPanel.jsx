@@ -1,592 +1,459 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import API from './api';
 import {
-  Shield,
-  Briefcase,
-  Newspaper,
-  BookOpen,
-  Plus,
+  ShieldCheck,
+  PlusCircle,
   Trash2,
+  BookOpen,
+  ArrowLeft,
   CheckCircle2,
   AlertCircle,
+  Loader2,
+  Search,
+  Filter,
+  Layers
 } from 'lucide-react';
-import API from './api';
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs', 'news', 'quizzes'
-  const [jobs, setJobs] = useState([]);
-  const [news, setNews] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('');
+  const navigate = useNavigate();
+  
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState('');
+  
+  // Search and Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedExam, setSelectedExam] = useState('ALL');
 
-  // Form states
-  const [jobForm, setJobForm] = useState({
-    title: '',
-    organization: '',
-    category: 'SSC',
-    vacancies: 100,
-    qualification: "Bachelor's Degree",
-    lastDate: '',
-    salary: '₹25,000 - ₹80,000',
-    applyUrl: '',
-  });
-
-  const [newsForm, setNewsForm] = useState({
-    title: '',
-    summary: '',
-    category: 'National',
-    tags: 'Govt, Policy',
-    source: 'PIB / The Hindu',
-    readTimeMinutes: 2,
-  });
-
-  const [quizForm, setQuizForm] = useState({
-    title: '',
-    targetExam: 'SSC & Railway',
-    durationMinutes: 15,
-    qText: '',
-    opt0: '',
-    opt1: '',
-    opt2: '',
-    opt3: '',
-    correctIndex: 0,
+  // Form State
+  const initialForm = {
+    exam: 'SSC CGL',
+    subject: 'Quantitative Aptitude',
+    questionText: '',
+    optionA: '',
+    optionB: '',
+    optionC: '',
+    optionD: '',
+    correctOptionIndex: 0,
     explanation: '',
-  });
-
-  // Load existing records for jobs and news
-  const loadData = async () => {
-    try {
-      if (activeTab === 'jobs') {
-        const res = await API.get('/jobs?category=All');
-        setJobs(res.data.data || []);
-      } else if (activeTab === 'news') {
-        const res = await API.get('/current-affairs?category=All');
-        setNews(res.data.data || []);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    difficulty: 'Moderate',
+    marks: 2,
+    negativeMarks: 0.5
   };
+  const [formData, setFormData] = useState(initialForm);
 
   useEffect(() => {
-    loadData();
-  }, [activeTab]);
+    fetchQuestions();
+  }, []);
 
-  const handleCreateJob = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const fetchQuestions = async () => {
     try {
-      await API.post('/admin/jobs', jobForm);
-      setStatusMsg('Job alert created successfully!');
-      setJobForm({
-        title: '',
-        organization: '',
-        category: 'SSC',
-        vacancies: 100,
-        qualification: "Bachelor's Degree",
-        lastDate: '',
-        salary: '₹25,000 - ₹80,000',
-        applyUrl: '',
-      });
-      loadData();
+      setLoading(true);
+      setError(null);
+      // Fetch up to 100 questions for management
+      const res = await API.get('/questions?limit=100');
+      const list = res.data?.questions || (Array.isArray(res.data) ? res.data : []);
+      setQuestions(list);
     } catch (err) {
-      setStatusMsg('Error: ' + (err.response?.data?.message || err.message));
+      console.error('Failed to load questions:', err);
+      setError('Failed to fetch questions from database.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteJob = async (id) => {
-    if (!window.confirm('Delete this job alert?')) return;
-    try {
-      await API.delete(`/admin/jobs/${id}`);
-      loadData();
-    } catch (err) {
-      alert('Delete failed: ' + err.message);
-    }
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleCreateNews = async (e) => {
+  const handleAddQuestion = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
+    setError(null);
+    setSuccessMsg('');
+
+    const options = [
+      formData.optionA.trim(),
+      formData.optionB.trim(),
+      formData.optionC.trim(),
+      formData.optionD.trim()
+    ].filter(Boolean);
+
+    if (options.length < 2) {
+      setError('Please provide at least 2 options for the question.');
+      setSubmitting(false);
+      return;
+    }
+
+    const payload = {
+      exam: formData.exam,
+      subject: formData.subject,
+      questionText: formData.questionText.trim(),
+      options,
+      correctOptionIndex: Number(formData.correctOptionIndex),
+      explanation: formData.explanation.trim() || 'No explanation provided.',
+      difficulty: formData.difficulty,
+      marks: Number(formData.marks),
+      negativeMarks: Number(formData.negativeMarks)
+    };
+
     try {
-      const payload = {
-        ...newsForm,
-        tags: newsForm.tags.split(',').map((t) => t.trim()),
-      };
-      await API.post('/admin/current-affairs', payload);
-      setStatusMsg('Current affairs item created successfully!');
-      setNewsForm({
-        title: '',
-        summary: '',
-        category: 'National',
-        tags: 'Govt, Policy',
-        source: 'PIB / The Hindu',
-        readTimeMinutes: 2,
-      });
-      loadData();
+      const res = await API.post('/questions', payload);
+      if (res.data?.success) {
+        setSuccessMsg('New question added to database successfully!');
+        setFormData(initialForm);
+        fetchQuestions();
+        setTimeout(() => setSuccessMsg(''), 4000);
+      } else {
+        setError(res.data?.message || 'Failed to save question.');
+      }
     } catch (err) {
-      setStatusMsg('Error: ' + (err.response?.data?.message || err.message));
+      console.error('Error saving question:', err);
+      setError(err.response?.data?.message || 'Failed to save question to server.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleDeleteNews = async (id) => {
-    if (!window.confirm('Delete this article?')) return;
+  const handleDeleteQuestion = async (id) => {
+    if (!window.confirm('Are you sure you want to permanently delete this question?')) {
+      return;
+    }
+
     try {
-      await API.delete(`/admin/current-affairs/${id}`);
-      loadData();
+      const res = await API.delete(`/questions/${id}`);
+      if (res.data?.success) {
+        setQuestions((prev) => prev.filter((q) => q._id !== id));
+      } else {
+        alert(res.data?.message || 'Failed to delete question.');
+      }
     } catch (err) {
-      alert('Delete failed: ' + err.message);
+      console.error('Error deleting question:', err);
+      alert(err.response?.data?.message || 'Failed to delete question.');
     }
   };
 
-  const handleCreateQuiz = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const payload = {
-        title: quizForm.title,
-        targetExam: quizForm.targetExam,
-        durationMinutes: Number(quizForm.durationMinutes),
-        questions: [
-          {
-            questionText: quizForm.qText,
-            options: [quizForm.opt0, quizForm.opt1, quizForm.opt2, quizForm.opt3],
-            correctOptionIndex: Number(quizForm.correctIndex),
-            explanation: quizForm.explanation,
-            marks: 2,
-            negativeMarks: 0.5,
-          },
-        ],
-      };
-      await API.post('/admin/mock-tests', payload);
-      setStatusMsg('Mock test and question created successfully!');
-      setQuizForm({
-        title: '',
-        targetExam: 'SSC & Railway',
-        durationMinutes: 15,
-        qText: '',
-        opt0: '',
-        opt1: '',
-        opt2: '',
-        opt3: '',
-        correctIndex: 0,
-        explanation: '',
-      });
-    } catch (err) {
-      setStatusMsg('Error: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const filteredQuestions = questions.filter((q) => {
+    const matchesSearch = q.questionText.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          q.subject.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesExam = selectedExam === 'ALL' || q.exam === selectedExam;
+    return matchesSearch && matchesExam;
+  });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16">
-      {/* Top Header */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 py-6 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center border border-orange-500/30">
-              <Shield className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight">Shiksha IQ Admin Console</h1>
-              <p className="text-xs text-slate-400">Content Operations & Question Authoring</p>
-            </div>
-          </div>
-          <a
-            href="/dashboard"
-            className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 px-3.5 py-2 rounded-xl transition-all"
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
+      {/* Top Bar */}
+      <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700/50 transition cursor-pointer"
           >
-            Back to App
-          </a>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-indigo-400" />
+            <h1 className="font-bold text-lg">Admin Question Portal</h1>
+          </div>
+          <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full font-medium ml-2">
+            Total Qs: {questions.length}
+          </span>
         </div>
+
+        <button
+          onClick={() => navigate('/mock-test')}
+          className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg transition"
+        >
+          Go to Mock Test
+        </button>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 mt-8 space-y-6">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
-          <button
-            onClick={() => {
-              setActiveTab('jobs');
-              setStatusMsg('');
-            }}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-              activeTab === 'jobs'
-                ? 'bg-orange-600 text-white shadow-md shadow-orange-600/20'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <Briefcase className="w-4 h-4" /> Manage Job Alerts
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('news');
-              setStatusMsg('');
-            }}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-              activeTab === 'news'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <Newspaper className="w-4 h-4" /> Manage Current Affairs
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('quizzes');
-              setStatusMsg('');
-            }}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-              activeTab === 'quizzes'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" /> Create Mock Test
-          </button>
-        </div>
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Left 5 Cols: Question Creation Form */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="bg-slate-800/70 border border-slate-700/70 rounded-2xl p-6 shadow-xl sticky top-24">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-700/60 mb-4">
+              <PlusCircle className="w-5 h-5 text-indigo-400" />
+              <h2 className="font-semibold text-base text-slate-100">Add New PYQ / Mock Question</h2>
+            </div>
 
-        {statusMsg && (
-          <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 rounded-xl text-xs font-semibold">
-            {statusMsg}
-          </div>
-        )}
-
-        {/* TAB 1: MANAGE JOBS */}
-        {activeTab === 'jobs' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <form
-              onSubmit={handleCreateJob}
-              className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3"
-            >
-              <h2 className="text-sm font-black uppercase tracking-wider text-slate-700">Add New Job Alert</h2>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. SSC CGL 2026 Notification"
-                  value={jobForm.title}
-                  onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
+            {error && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-2 mb-4">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
               </div>
+            )}
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Organization</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Staff Selection Commission"
-                  value={jobForm.organization}
-                  onChange={(e) => setJobForm({ ...jobForm, organization: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
+            {successMsg && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center gap-2 mb-4">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{successMsg}</span>
               </div>
+            )}
 
-              <div className="grid grid-cols-2 gap-2">
+            <form onSubmit={handleAddQuestion} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase">Category</label>
+                  <label className="font-semibold text-slate-300 block mb-1">Exam Target</label>
                   <select
-                    value={jobForm.category}
-                    onChange={(e) => setJobForm({ ...jobForm, category: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                    name="exam"
+                    value={formData.exam}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                   >
-                    {['SSC', 'Railways', 'Banking', 'UPSC', 'Defence', 'State PSC', 'Teaching'].map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                    <option value="SSC CGL">SSC CGL</option>
+                    <option value="SSC CHSL">SSC CHSL</option>
+                    <option value="RRB NTPC">RRB NTPC</option>
+                    <option value="Railway Group D">Railway Group D</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-300 block mb-1">Subject</label>
+                  <select
+                    name="subject"
+                    value={formData.subject}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="Quantitative Aptitude">Quantitative Aptitude</option>
+                    <option value="Reasoning">Logical Reasoning</option>
+                    <option value="General Awareness">General Awareness</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-300 block mb-1">Question Statement</label>
+                <textarea
+                  name="questionText"
+                  required
+                  rows={3}
+                  value={formData.questionText}
+                  onChange={handleInputChange}
+                  placeholder="e.g.: If x + 1/x = 4, what is the value of x² + 1/x²?"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 placeholder-slate-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* Options Inputs */}
+              <div className="space-y-2">
+                <label className="font-semibold text-slate-300 block">Answer Options & Correct Option</label>
+                {[
+                  { key: 'optionA', label: 'A', idx: 0 },
+                  { key: 'optionB', label: 'B', idx: 1 },
+                  { key: 'optionC', label: 'C', idx: 2 },
+                  { key: 'optionD', label: 'D', idx: 3 },
+                ].map((item) => (
+                  <div key={item.key} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="correctOptionIndex"
+                      value={item.idx}
+                      checked={Number(formData.correctOptionIndex) === item.idx}
+                      onChange={handleInputChange}
+                      className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      title="Mark as correct answer"
+                    />
+                    <span className="w-5 text-slate-400 font-bold">{item.label}</span>
+                    <input
+                      type="text"
+                      required
+                      name={item.key}
+                      value={formData[item.key]}
+                      onChange={handleInputChange}
+                      placeholder={`Option ${item.label}`}
+                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-300 block mb-1">Solution / Explanation</label>
+                <textarea
+                  name="explanation"
+                  rows={2}
+                  value={formData.explanation}
+                  onChange={handleInputChange}
+                  placeholder="Short step-by-step reason or formula used..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 placeholder-slate-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-400 block mb-1">Difficulty</label>
+                  <select
+                    name="difficulty"
+                    value={formData.difficulty}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="Easy">Easy</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="Hard">Hard</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase">Total Vacancies</label>
+                  <label className="font-semibold text-slate-400 block mb-1">+ Marks</label>
                   <input
                     type="number"
-                    required
-                    value={jobForm.vacancies}
-                    onChange={(e) => setJobForm({ ...jobForm, vacancies: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase">Last Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={jobForm.lastDate}
-                    onChange={(e) => setJobForm({ ...jobForm, lastDate: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                    step="0.5"
+                    name="marks"
+                    value={formData.marks}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase">Salary Range</label>
+                  <label className="font-semibold text-slate-400 block mb-1">- Negative</label>
                   <input
-                    type="text"
-                    value={jobForm.salary}
-                    onChange={(e) => setJobForm({ ...jobForm, salary: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                    type="number"
+                    step="0.1"
+                    name="negativeMarks"
+                    value={formData.negativeMarks}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Direct Apply Link</label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://..."
-                  value={jobForm.applyUrl}
-                  onChange={(e) => setJobForm({ ...jobForm, applyUrl: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                disabled={submitting}
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-900/30 text-sm mt-2"
               >
-                Publish Job Alert
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Adding Question...</span>
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Publish Question</span>
+                  </>
+                )}
               </button>
             </form>
-
-            <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-              <h2 className="text-sm font-black uppercase tracking-wider text-slate-700">Active Job Postings</h2>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                {jobs.map((j) => (
-                  <div key={j._id} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-xs text-slate-800">{j.title}</p>
-                      <p className="text-[10px] text-slate-500">{j.organization} • {j.vacancies} Posts</p>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteJob(j._id)}
-                      className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
-        )}
+        </div>
 
-        {/* TAB 2: MANAGE CURRENT AFFAIRS */}
-        {activeTab === 'news' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <form
-              onSubmit={handleCreateNews}
-              className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3"
-            >
-              <h2 className="text-sm font-black uppercase tracking-wider text-slate-700">Publish News Digest</h2>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Headline</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. New Economic Reforms Announced"
-                  value={newsForm.title}
-                  onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Category</label>
-                <select
-                  value={newsForm.category}
-                  onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                >
-                  {['National', 'International', 'Economy', 'Science & Tech', 'Sports', 'Awards'].map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Exam Summary</label>
-                <textarea
-                  rows="4"
-                  required
-                  placeholder="Key points relevant for competitive exams..."
-                  value={newsForm.summary}
-                  onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Comma Separated Tags</label>
-                <input
-                  type="text"
-                  value={newsForm.tags}
-                  onChange={(e) => setNewsForm({ ...newsForm, tags: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
-              >
-                Publish Current Affairs
-              </button>
-            </form>
-
-            <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-              <h2 className="text-sm font-black uppercase tracking-wider text-slate-700">Published Digests</h2>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                {news.map((item) => (
-                  <div key={item._id} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-xs text-slate-800">{item.title}</p>
-                      <p className="text-[10px] text-slate-500">{item.category} • {item.readTimeMinutes} min read</p>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteNews(item._id)}
-                      className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: CREATE MOCK TEST */}
-        {activeTab === 'quizzes' && (
-          <form
-            onSubmit={handleCreateQuiz}
-            className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm max-w-3xl space-y-4"
-          >
-            <h2 className="text-sm font-black uppercase tracking-wider text-slate-700">Create Mock Test & Question</h2>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Test Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Daily Mock Test #43"
-                  value={quizForm.title}
-                  onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Duration (Minutes)</label>
-                <input
-                  type="number"
-                  required
-                  value={quizForm.durationMinutes}
-                  onChange={(e) => setQuizForm({ ...quizForm, durationMinutes: Number(e.target.value) })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase">Question Text</label>
-              <textarea
-                rows="2"
-                required
-                placeholder="Type the multiple choice question here..."
-                value={quizForm.qText}
-                onChange={(e) => setQuizForm({ ...quizForm, qText: e.target.value })}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs resize-none"
+        {/* Right 7 Cols: Question Inventory List */}
+        <div className="lg:col-span-7 space-y-4">
+          {/* Controls Bar */}
+          <div className="bg-slate-800/70 border border-slate-700/70 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search questions by text or subject..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Option A</label>
-                <input
-                  type="text"
-                  required
-                  value={quizForm.opt0}
-                  onChange={(e) => setQuizForm({ ...quizForm, opt0: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Option B</label>
-                <input
-                  type="text"
-                  required
-                  value={quizForm.opt1}
-                  onChange={(e) => setQuizForm({ ...quizForm, opt1: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Option C</label>
-                <input
-                  type="text"
-                  required
-                  value={quizForm.opt2}
-                  onChange={(e) => setQuizForm({ ...quizForm, opt2: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Option D</label>
-                <input
-                  type="text"
-                  required
-                  value={quizForm.opt3}
-                  onChange={(e) => setQuizForm({ ...quizForm, opt3: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <select
+                value={selectedExam}
+                onChange={(e) => setSelectedExam(e.target.value)}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="ALL">All Exams</option>
+                <option value="SSC CGL">SSC CGL</option>
+                <option value="SSC CHSL">SSC CHSL</option>
+                <option value="RRB NTPC">RRB NTPC</option>
+                <option value="Railway Group D">Railway Group D</option>
+              </select>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Correct Option</label>
-                <select
-                  value={quizForm.correctIndex}
-                  onChange={(e) => setQuizForm({ ...quizForm, correctIndex: Number(e.target.value) })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+          {/* List of Questions */}
+          {loading ? (
+            <div className="py-20 text-center space-y-3">
+              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
+              <p className="text-xs text-slate-400">Loading database questions...</p>
+            </div>
+          ) : filteredQuestions.length === 0 ? (
+            <div className="py-16 text-center bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+              <Layers className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+              <p className="text-sm text-slate-300 font-medium">No matching questions found</p>
+              <p className="text-xs text-slate-500">Try adjusting your search terms or filter.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredQuestions.map((q, idx) => (
+                <div
+                  key={q._id || idx}
+                  className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 space-y-2.5 hover:border-slate-600 transition"
                 >
-                  <option value={0}>Option A</option>
-                  <option value={1}>Option B</option>
-                  <option value={2}>Option C</option>
-                  <option value={3}>Option D</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase">Explanation</label>
-                <input
-                  type="text"
-                  placeholder="Step-by-step logic..."
-                  value={quizForm.explanation}
-                  onChange={(e) => setQuizForm({ ...quizForm, explanation: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-            </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-medium">
+                        {q.exam}
+                      </span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-300 font-medium">{q.subject}</span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-amber-400">{q.difficulty}</span>
+                    </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
-            >
-              Publish Test & Question
-            </button>
-          </form>
-        )}
-      </div>
+                    <button
+                      onClick={() => handleDeleteQuestion(q._id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                      title="Delete Question"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <p className="text-sm font-medium text-slate-100">
+                    {q.questionText}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {q.options.map((opt, oIdx) => {
+                      const isCorrect = oIdx === q.correctOptionIndex;
+                      return (
+                        <div
+                          key={oIdx}
+                          className={`p-2 rounded-lg border text-xs flex items-center gap-2 ${
+                            isCorrect
+                              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-medium'
+                              : 'bg-slate-900/60 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          <span className="font-bold">{String.fromCharCode(65 + oIdx)}.</span>
+                          <span className="truncate">{opt}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {q.explanation && (
+                    <div className="text-[11px] text-slate-400 bg-slate-900/40 p-2 rounded-lg border border-slate-800/80">
+                      <span className="text-indigo-400 font-semibold">Explanation:</span> {q.explanation}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </main>
     </div>
   );
 }
