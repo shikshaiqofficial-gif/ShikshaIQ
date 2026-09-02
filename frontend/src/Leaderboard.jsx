@@ -1,222 +1,260 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Trophy,
-  Medal,
-  Award,
-  Crown,
-  Search,
-  Filter,
-  Flame,
-  ArrowUpRight,
-  TrendingUp,
-} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import API from './api';
+import {
+  ArrowLeft,
+  Award,
+  Medal,
+  Trophy,
+  Flame,
+  Clock,
+  Target,
+  Search,
+  User,
+  RefreshCw,
+  TrendingUp
+} from 'lucide-react';
 
 export default function Leaderboard() {
-  const [board, setBoard] = useState([]);
-  const [totalStudents, setTotalStudents] = useState(0);
+  const navigate = useNavigate();
+  const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [examFilter, setExamFilter] = useState('All');
   const [search, setSearch] = useState('');
-
-  const currentUser = JSON.parse(localStorage.getItem('shiksha_user') || '{}');
+  const [selectedExam, setSelectedExam] = useState('All');
 
   useEffect(() => {
-    const fetchLeaderboard = async () => {
-      setLoading(true);
-      try {
-        const res = await API.get(`/leaderboard?exam=${examFilter}`);
-        if (res.data?.success) {
-          setBoard(res.data.leaderboard);
-          setTotalStudents(res.data.totalParticipants);
-        }
-      } catch (err) {
-        console.error('Failed to load leaderboard:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchLeaderboard();
-  }, [examFilter]);
+  }, []);
 
-  const filteredBoard = board.filter((u) =>
-    u.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const fetchLeaderboard = async () => {
+    try {
+      setLoading(true);
+      const res = await API.get('/leaderboard');
+      const list = res.data?.leaderboard || (Array.isArray(res.data) ? res.data : []);
+      setLeaderboard(list);
+    } catch (err) {
+      console.error('Failed to load leaderboard data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const topThree = board.slice(0, 3);
-  const userStanding = board.find((u) => u.email === currentUser.email);
+  // Safe date formatter that prevents .toLocaleString() crash on undefined/null
+  const formatDate = (dateVal) => {
+    if (!dateVal) return 'Recently';
+    try {
+      const d = new Date(dateVal);
+      return isNaN(d.getTime()) ? 'Recently' : d.toLocaleDateString();
+    } catch {
+      return 'Recently';
+    }
+  };
+
+  // Format seconds into MM:SS
+  const formatTime = (secs) => {
+    if (!secs || isNaN(secs)) return 'N/A';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}m ${s}s`;
+  };
+
+  const filtered = leaderboard.filter((item) => {
+    const matchesExam = selectedExam === 'All' || item.exam === selectedExam;
+    const matchesSearch =
+      !search ||
+      (item.userName && item.userName.toLowerCase().includes(search.toLowerCase().trim()));
+    return matchesExam && matchesSearch;
+  });
+
+  const topThree = filtered.slice(0, 3);
+  const restList = filtered.slice(3);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-white py-12 px-4 sm:px-8 border-b border-slate-800 shadow-lg">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <span className="px-3 py-1 bg-amber-500/20 text-amber-400 text-xs font-bold rounded-full uppercase tracking-wider border border-amber-500/30">
-              National Rankings
-            </span>
-            <h1 className="text-3xl sm:text-4xl font-black mt-3 tracking-tight flex items-center gap-3">
-              All-India Leaderboard <Trophy className="w-8 h-8 text-amber-400" />
-            </h1>
-            <p className="text-slate-400 text-xs sm:text-sm mt-1">
-              Live percentile & score index evaluated across {totalStudents.toLocaleString()} aspirants.
-            </p>
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
+      {/* Header */}
+      <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700/50 transition cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-400" />
+            <h1 className="font-bold text-lg">All-India Aspirant Leaderboard</h1>
           </div>
-
-          {/* User Fast Badge */}
-          {userStanding && (
-            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex items-center gap-4">
-              <div className="w-12 h-12 bg-amber-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/30">
-                #{userStanding.rank}
-              </div>
-              <div>
-                <p className="text-[11px] text-slate-300 font-bold uppercase">Your Standing</p>
-                <p className="text-lg font-black text-white">{userStanding.percentile}th Percentile</p>
-                <p className="text-[11px] text-emerald-400">{userStanding.totalScore} Total Points</p>
-              </div>
-            </div>
-          )}
         </div>
-      </div>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-8 mt-8 space-y-8">
-        {/* Top 3 Podium Cards */}
-        {topThree.length >= 3 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end pt-4">
-            {/* Rank 2 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center order-2 md:order-1">
-              <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center font-black text-lg mb-2">
-                2
-              </div>
-              <h3 className="font-black text-slate-900">{topThree[1].name}</h3>
-              <p className="text-[11px] text-slate-400">{topThree[1].targetExam}</p>
-              <div className="mt-4 px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-700">
-                {topThree[1].totalScore} pts • {topThree[1].avgAccuracy}% Acc
-              </div>
-            </div>
+        <button
+          onClick={fetchLeaderboard}
+          className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
+          title="Refresh Rankings"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </header>
 
-            {/* Rank 1 */}
-            <div className="bg-gradient-to-b from-amber-500 to-amber-600 text-white p-8 rounded-3xl shadow-xl flex flex-col items-center text-center relative order-1 md:order-2 scale-105 border-2 border-amber-300">
-              <Crown className="w-8 h-8 text-white absolute -top-4" />
-              <div className="w-16 h-16 bg-white text-amber-600 rounded-2xl flex items-center justify-center font-black text-2xl mb-3 shadow-md">
-                1
-              </div>
-              <h3 className="font-black text-xl text-white">{topThree[0].name}</h3>
-              <p className="text-xs text-amber-100">{topThree[0].targetExam}</p>
-              <div className="mt-4 px-4 py-1.5 bg-black/20 backdrop-blur-md rounded-full text-xs font-black text-white">
-                {topThree[0].totalScore} pts • {topThree[0].avgAccuracy}% Acc
-              </div>
-            </div>
-
-            {/* Rank 3 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center order-3">
-              <div className="w-12 h-12 bg-orange-100 text-orange-700 rounded-2xl flex items-center justify-center font-black text-lg mb-2">
-                3
-              </div>
-              <h3 className="font-black text-slate-900">{topThree[2].name}</h3>
-              <p className="text-[11px] text-slate-400">{topThree[2].targetExam}</p>
-              <div className="mt-4 px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-700">
-                {topThree[2].totalScore} pts • {topThree[2].avgAccuracy}% Acc
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Filter & Search Bar */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-            {['All', 'SSC & Railway', 'Banking', 'UPSC & State PSC'].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setExamFilter(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
-                  examFilter === cat
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+      {/* Main Body */}
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        
+        {/* Filter Controls */}
+        <div className="bg-slate-800/70 border border-slate-700/70 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xl">
+          <div className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search aspirant name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+            {['All', 'SSC CGL', 'RRB NTPC', 'SSC Mock Test'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSelectedExam(tab)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition cursor-pointer border ${
+                  selectedExam === tab
+                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-md'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Leaderboard Table */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Podium Highlight (Top 3) */}
+        {topThree.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            {/* Rank 2 */}
+            {topThree[1] && (
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col items-center justify-between text-center relative order-2 md:order-1 shadow-lg">
+                <div className="w-10 h-10 rounded-full bg-slate-700 border-2 border-slate-400 flex items-center justify-center font-bold text-slate-200 mb-2">
+                  2
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-100 text-sm">{topThree[1].userName}</h4>
+                  <span className="text-[11px] text-indigo-400 font-medium">{topThree[1].exam || 'Exam'}</span>
+                </div>
+                <div className="mt-3 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-700 w-full flex justify-around text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Score</span>
+                    <strong className="text-white font-mono">{topThree[1].score ?? 0}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Accuracy</span>
+                    <strong className="text-emerald-400 font-mono">{topThree[1].accuracy ?? 0}%</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rank 1 */}
+            {topThree[0] && (
+              <div className="bg-gradient-to-b from-amber-500/10 to-slate-800/80 border border-amber-500/40 rounded-2xl p-6 flex flex-col items-center justify-between text-center relative order-1 md:order-2 shadow-2xl scale-105">
+                <div className="w-12 h-12 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center font-black text-amber-300 mb-2 text-lg">
+                  👑 1
+                </div>
+                <div>
+                  <h4 className="font-black text-white text-base">{topThree[0].userName}</h4>
+                  <span className="text-xs text-amber-400 font-semibold">{topThree[0].exam || 'Exam'}</span>
+                </div>
+                <div className="mt-4 bg-slate-900/90 px-4 py-2.5 rounded-xl border border-amber-500/30 w-full flex justify-around text-xs shadow-md">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Score</span>
+                    <strong className="text-amber-300 font-mono text-sm">{topThree[0].score ?? 0}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Accuracy</span>
+                    <strong className="text-emerald-400 font-mono text-sm">{topThree[0].accuracy ?? 0}%</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rank 3 */}
+            {topThree[2] && (
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col items-center justify-between text-center relative order-3 md:order-3 shadow-lg">
+                <div className="w-10 h-10 rounded-full bg-amber-800/40 border-2 border-amber-700 flex items-center justify-center font-bold text-amber-400 mb-2">
+                  3
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-100 text-sm">{topThree[2].userName}</h4>
+                  <span className="text-[11px] text-indigo-400 font-medium">{topThree[2].exam || 'Exam'}</span>
+                </div>
+                <div className="mt-3 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-700 w-full flex justify-around text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Score</span>
+                    <strong className="text-white font-mono">{topThree[2].score ?? 0}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Accuracy</span>
+                    <strong className="text-emerald-400 font-mono">{topThree[2].accuracy ?? 0}%</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Full Rankings Table */}
+        <div className="bg-slate-800/70 border border-slate-700/70 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-4 px-6">Rank</th>
-                  <th className="py-4 px-6">Candidate</th>
-                  <th className="py-4 px-6">Target Exam</th>
-                  <th className="py-4 px-6 text-center">Tests Taken</th>
-                  <th className="py-4 px-6 text-center">Avg Accuracy</th>
-                  <th className="py-4 px-6 text-center">Percentile</th>
-                  <th className="py-4 px-6 text-right">Points</th>
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-900/70 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-700/80">
+                <tr>
+                  <th className="px-4 py-3 text-center w-16">Rank</th>
+                  <th className="px-4 py-3">Aspirant</th>
+                  <th className="px-4 py-3">Exam</th>
+                  <th className="px-4 py-3 text-center">Score</th>
+                  <th className="px-4 py-3 text-center">Accuracy</th>
+                  <th className="px-4 py-3 text-center">Time</th>
+                  <th className="px-4 py-3 text-right">Attempted</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {filteredBoard.map((row) => {
-                  const isUser = row.email === currentUser.email;
-                  return (
-                    <tr
-                      key={row._id}
-                      className={`hover:bg-slate-50/80 transition-colors ${
-                        isUser ? 'bg-orange-50/50 font-bold' : ''
-                      }`}
-                    >
-                      <td className="py-4 px-6">
-                        <span
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-black ${
-                            row.rank === 1
-                              ? 'bg-amber-400 text-white'
-                              : row.rank === 2
-                              ? 'bg-slate-300 text-slate-800'
-                              : row.rank === 3
-                              ? 'bg-orange-300 text-orange-900'
-                              : 'text-slate-500'
-                          }`}
-                        >
-                          {row.rank}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <p className="font-bold text-slate-900">
-                          {row.name} {isUser && <span className="text-orange-600 ml-1">(You)</span>}
-                        </p>
-                      </td>
-                      <td className="py-4 px-6 text-slate-500">{row.targetExam}</td>
-                      <td className="py-4 px-6 text-center text-slate-600">{row.totalAttempts}</td>
-                      <td className="py-4 px-6 text-center">
-                        <span className="text-emerald-600 font-semibold">{row.avgAccuracy}%</span>
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 font-bold rounded-md text-[11px]">
-                          {row.percentile}th
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-right font-black text-slate-900">
-                        {row.totalScore}
-                      </td>
-                    </tr>
-                  );
-                })}
+              <tbody className="divide-y divide-slate-700/50">
+                {filtered.map((item, index) => (
+                  <tr key={item._id || index} className="hover:bg-slate-800/60 transition">
+                    <td className="px-4 py-3 text-center font-bold text-slate-300">
+                      #{index + 1}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-white flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-xs">
+                        {item.userName ? item.userName[0].toUpperCase() : 'U'}
+                      </div>
+                      <span>{item.userName || 'Anonymous Aspirant'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">{item.exam || 'SSC CGL'}</td>
+                    <td className="px-4 py-3 text-center font-mono font-bold text-indigo-300">
+                      {item.score ?? 0}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-emerald-400 font-semibold">
+                      {item.accuracy ?? 0}%
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-slate-400">
+                      {formatTime(item.timeTakenSeconds)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-400 text-[11px]">
+                      {formatDate(item.createdAt)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
+
+          {filtered.length === 0 && (
+            <div className="py-12 text-center text-slate-400 text-xs">
+              No matching aspirant scores recorded yet.
+            </div>
+          )}
         </div>
+
       </main>
     </div>
   );
