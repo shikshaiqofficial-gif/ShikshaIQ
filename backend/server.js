@@ -628,6 +628,161 @@ app.get('/api/current-affairs', async (req, res) => {
   }
 });
 
+// --- JOB ALERTS SCHEMA & ROUTES ---
+const jobAlertSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  examAgency: { type: String, required: true }, // SSC, RRB, State PSC, Banking
+  vacancies: { type: String, required: true },
+  qualification: { type: String, required: true },
+  ageLimit: { type: String, required: true },
+  applicationStartDate: { type: String, required: true },
+  applicationEndDate: { type: String, required: true },
+  examDate: { type: String, required: true },
+  status: { type: String, enum: ['Active', 'Upcoming', 'Closed'], default: 'Active' },
+  notificationUrl: { type: String, default: '#' },
+  applyUrl: { type: String, default: '#' },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const JobAlert = mongoose.models.JobAlert || mongoose.model('JobAlert', jobAlertSchema);
+
+// Get All Job Alerts
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const { agency, status } = req.query;
+    const filter = {};
+    if (agency && agency !== 'ALL') filter.examAgency = agency;
+    if (status && status !== 'ALL') filter.status = status;
+
+    let jobs = await JobAlert.find(filter).sort({ createdAt: -1 });
+
+    // Auto-seed default notifications if empty
+    if (jobs.length === 0) {
+      const defaultJobs = [
+        {
+          title: "SSC Combined Graduate Level (CGL) Examination",
+          examAgency: "SSC",
+          vacancies: "14,500+ Posts",
+          qualification: "Bachelor's Degree in any discipline",
+          ageLimit: "18 - 32 Years",
+          applicationStartDate: "June 2026",
+          applicationEndDate: "July 2026",
+          examDate: "September / October 2026",
+          status: "Active",
+          notificationUrl: "https://ssc.gov.in",
+          applyUrl: "https://ssc.gov.in"
+        },
+        {
+          title: "RRB Non-Technical Popular Categories (NTPC)",
+          examAgency: "RRB",
+          vacancies: "11,558 Posts",
+          qualification: "12th Pass / Graduate depending on level",
+          ageLimit: "18 - 33 Years",
+          applicationStartDate: "September 2026",
+          applicationEndDate: "October 2026",
+          examDate: "December 2026 - January 2027",
+          status: "Active",
+          notificationUrl: "https://indianrailways.gov.in",
+          applyUrl: "https://indianrailways.gov.in"
+        },
+        {
+          title: "SSC Combined Higher Secondary Level (CHSL 10+2)",
+          examAgency: "SSC",
+          vacancies: "3,712 Posts",
+          qualification: "12th Standard or equivalent",
+          ageLimit: "18 - 27 Years",
+          applicationStartDate: "April 2026",
+          applicationEndDate: "May 2026",
+          examDate: "July 2026",
+          status: "Closed",
+          notificationUrl: "https://ssc.gov.in",
+          applyUrl: "https://ssc.gov.in"
+        },
+        {
+          title: "Railway Recruitment Cell Group D (Level-1 Posts)",
+          examAgency: "RRB",
+          vacancies: "32,000+ Posts (Projected)",
+          qualification: "10th Pass + ITI or equivalent",
+          ageLimit: "18 - 33 Years",
+          applicationStartDate: "October 2026",
+          applicationEndDate: "November 2026",
+          examDate: "Early 2027",
+          status: "Upcoming",
+          notificationUrl: "https://indianrailways.gov.in",
+          applyUrl: "https://indianrailways.gov.in"
+        }
+      ];
+
+      jobs = await JobAlert.insertMany(defaultJobs);
+    }
+
+    res.json({ success: true, count: jobs.length, jobs });
+  } catch (err) {
+    console.error('Error fetching jobs:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// --- GEMINI AI PERSONALIZED STUDY PLAN GENERATOR ---
+app.post('/api/study-plan/generate', verifyToken, async (req, res) => {
+  try {
+    const { targetExam, weakSubjects, recentScore, accuracy } = req.body;
+
+    if (!process.env.GEMINI_API_KEY || !genAI) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Gemini API key is not configured on the server.' 
+      });
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+
+    const prompt = `You are the lead academic mentor at ShikshaIQ for competitive exams.
+Student Profile:
+- Target Exam: ${targetExam || 'SSC CGL'}
+- Recent Test Score: ${recentScore ?? 'N/A'}
+- Overall Accuracy: ${accuracy ?? 'N/A'}%
+- Identified Weak Areas / Subjects: ${weakSubjects || 'Quantitative Aptitude, General Reasoning'}
+
+Generate a crisp, practical, and highly targeted 7-day revision schedule in JSON format.
+Your output must strictly be a JSON object with this shape:
+{
+  "focusSummary": "Short 2-sentence diagnosis of the student's preparation state.",
+  "days": [
+    {
+      "day": "Day 1",
+      "subject": "Name of subject",
+      "topic": "Core topic to master",
+      "targetQuestions": 40,
+      "strategyTip": "Actionable shortcut, formula, or exam tip"
+    }
+  ]
+}
+
+Return ONLY raw JSON, with no markdown code blocks, no backticks, and no extra commentary.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let rawText = response.text().trim();
+
+    // Clean up code block wrappers if any
+    rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+
+    const planData = JSON.parse(rawText);
+
+    res.json({
+      success: true,
+      plan: planData
+    });
+  } catch (error) {
+    console.error('Study plan generation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Failed to generate personalized study plan.' 
+    });
+  }
+});
+
 // ==========================================
 // 8. START EXPRESS SERVER
 // ==========================================
