@@ -1,112 +1,148 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from './api';
-import { 
-  Send, 
-  Image as ImageIcon, 
-  X, 
-  Sparkles, 
-  ArrowLeft, 
-  BookOpen, 
-  CheckCircle, 
-  Lightbulb, 
+import ReactMarkdown from 'react-markdown';
+import {
+  ArrowLeft,
+  Sparkles,
+  Send,
   Loader2,
+  Volume2,
+  VolumeX,
+  Pause,
+  Play,
+  RotateCcw,
+  BookOpen,
+  Image as ImageIcon,
+  CheckCircle2,
   HelpCircle
 } from 'lucide-react';
 
 export default function DoubtSolver() {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
-
   const [question, setQuestion] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [subject, setSubject] = useState('Quantitative Aptitude');
   const [loading, setLoading] = useState(false);
   const [solution, setSolution] = useState(null);
   const [error, setError] = useState(null);
 
-  // Quick preset exam queries
-  const presets = [
-    "Find the unit digit of (7^95 - 3^58)",
-    "Explain the shortcut for 2-year CI and SI difference",
-    "How to solve Syllogisms with 'Only a few' cases?",
-    "Trick to remember the 8 states on Tropic of Cancer"
+  // Speech Synthesis (TTS) State
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const speechRef = useRef(null);
+
+  const subjects = [
+    'Quantitative Aptitude',
+    'Reasoning',
+    'General Awareness & Science',
+    'English Comprehension'
   ];
 
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file (PNG, JPG, or WEBP).');
-      return;
-    }
-
-    // Size limit check (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size exceeds 5MB. Please choose a smaller image.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setSelectedImage({
-        base64: reader.result,
-        mimeType: file.type
-      });
-      setImagePreview(reader.result);
+  // Clean up speech synthesis when unmounting or loading new answers
+  useEffect(() => {
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
-    reader.readAsDataURL(file);
-  };
+  }, []);
 
-  const handleRemoveImage = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleAskDoubt = async (e) => {
+    e?.preventDefault();
+    if (!question.trim() || loading) return;
+
+    // Stop ongoing speech if asking a new question
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setIsPaused(false);
     }
-  };
-
-  const handleSolve = async (queryText = question) => {
-    const textToSend = queryText.trim();
-    if (!textToSend && !selectedImage) {
-      alert('Please type a question or upload an image of the problem.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSolution(null);
 
     try {
-      const payload = {
-        question: textToSend,
-        imageBase64: selectedImage ? selectedImage.base64 : null,
-        mimeType: selectedImage ? selectedImage.mimeType : null
-      };
+      setLoading(true);
+      setError(null);
+      setSolution(null);
 
-      const res = await API.post('/doubts/solve', payload);
+      const res = await API.post('/doubts/solve', {
+        question: question.trim(),
+        subject
+      });
 
-      if (res.data?.success) {
-        setSolution(res.data.answer);
+      if (res.data?.solution) {
+        setSolution(res.data.solution);
       } else {
-        setError(res.data?.message || 'Failed to generate solution.');
+        setError('No explanation could be generated. Please try phrasing your question clearly.');
       }
     } catch (err) {
-      console.error('Doubt resolution error:', err);
-      setError(
-        err.response?.data?.message || 
-        'Could not connect to Gemini AI. Check if GEMINI_API_KEY is configured on Render.'
-      );
+      console.error('Doubt solving failed:', err);
+      setError(err.response?.data?.message || 'Server error while resolving doubt. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Text-to-Speech Controller
+  const handleToggleSpeech = () => {
+    if (!window.speechSynthesis) {
+      alert('Speech synthesis is not supported on this browser.');
+      return;
+    }
+
+    if (isSpeaking && !isPaused) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+      return;
+    }
+
+    if (isPaused) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+      return;
+    }
+
+    // Prepare plain text: strip markdown characters for natural voice reading
+    const cleanText = solution
+      .replace(/[#*`_\[\]()]/g, ' ')
+      .replace(/\n+/g, '. ')
+      .replace(/\s+/g, ' ');
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 0.95; // comfortable study cadence
+    utterance.pitch = 1.0;
+
+    // Attempt Indian English voice selection if available in browser
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => v.lang.includes('en-IN') || v.name.includes('India')) || voices.find(v => v.lang.startsWith('en'));
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    speechRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
+    setIsPaused(false);
+  };
+
+  const handleStopSpeech = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    setIsPaused(false);
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      {/* Top Navigation */}
-      <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-6 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md">
+      {/* Header */}
+      <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
@@ -115,143 +151,130 @@ export default function DoubtSolver() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-400" />
-            <h1 className="font-bold text-lg">AI Doubt Resolution</h1>
+            <Sparkles className="w-5 h-5 text-purple-400" />
+            <h1 className="font-bold text-lg">AI Doubt Resolution Mentor</h1>
           </div>
-          <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full font-medium ml-2">
-            Gemini 2.5 Flash
-          </span>
         </div>
-
-        <button
-          onClick={() => navigate('/mock-test')}
-          className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg transition"
-        >
-          Take a Mock Test
-        </button>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-6 space-y-6">
+      {/* Main Content */}
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
         
         {/* Input Card */}
         <div className="bg-slate-800/70 border border-slate-700/70 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-indigo-400" />
-              Type your problem or upload a screenshot
-            </label>
-            <span className="text-xs text-slate-400">SSC • Railways • Banking</span>
-          </div>
-
-          {/* Text Area */}
-          <textarea
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Paste your question here, e.g.: A train 180m long passes a telegraph post in 9 seconds. What is its speed in km/h?"
-            className="w-full h-32 bg-slate-900/80 border border-slate-700 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
-          />
-
-          {/* Image Preview if selected */}
-          {imagePreview && (
-            <div className="relative inline-block bg-slate-900 border border-slate-700 rounded-xl p-2">
-              <img 
-                src={imagePreview} 
-                alt="Selected doubt preview" 
-                className="max-h-48 max-w-xs rounded-lg object-contain"
-              />
-              <button
-                onClick={handleRemoveImage}
-                className="absolute -top-2 -right-2 bg-rose-600 hover:bg-rose-500 text-white rounded-full p-1 shadow-md transition"
-                title="Remove image"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Actions Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-            <div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageSelect}
-                accept="image/*"
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-200 rounded-xl text-sm font-medium transition flex items-center gap-2 cursor-pointer"
-              >
-                <ImageIcon className="w-4 h-4 text-indigo-400" />
-                <span>{imagePreview ? 'Change Photo' : 'Upload Image / Screenshot'}</span>
-              </button>
-            </div>
-
-            <button
-              onClick={() => handleSolve()}
-              disabled={loading || (!question.trim() && !selectedImage)}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition flex items-center gap-2 shadow-lg shadow-indigo-900/30 cursor-pointer"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Solving Step-by-Step...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>Solve with AI</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Quick Preset Buttons */}
-          <div className="pt-3 border-t border-slate-700/50">
-            <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
-              <Lightbulb className="w-3.5 h-3.5 text-amber-400" /> Try these common exam questions:
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {presets.map((p, idx) => (
+            <span className="text-xs font-semibold text-slate-300">Select Subject Focus:</span>
+            <div className="flex gap-2 overflow-x-auto">
+              {subjects.map((sub) => (
                 <button
-                  key={idx}
-                  onClick={() => {
-                    setQuestion(p);
-                    handleSolve(p);
-                  }}
-                  className="text-xs bg-slate-900/80 hover:bg-slate-700/80 border border-slate-700/80 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg transition text-left cursor-pointer"
+                  key={sub}
+                  type="button"
+                  onClick={() => setSubject(sub)}
+                  className={`px-3 py-1 rounded-xl text-xs font-medium transition cursor-pointer border ${
+                    subject === sub
+                      ? 'bg-purple-600 border-purple-500 text-white shadow-md'
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                  }`}
                 >
-                  {p}
+                  {sub.split(' ')[0]}
                 </button>
               ))}
             </div>
           </div>
+
+          <form onSubmit={handleAskDoubt} className="space-y-4">
+            <textarea
+              rows="4"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Type your exam question, formula query, or problem statement here..."
+              className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 leading-relaxed resize-none"
+            ></textarea>
+
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <HelpCircle className="w-3.5 h-3.5 text-purple-400" />
+                <span>Powered by Gemini 3.6 Flash for step-by-step reasoning & short-tricks.</span>
+              </span>
+
+              <button
+                type="submit"
+                disabled={loading || !question.trim()}
+                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-purple-900/30 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Solve Doubt</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
 
-        {/* Error Notification */}
         {error && (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-sm flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-            <span>{error}</span>
+          <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-300 text-xs">
+            {error}
           </div>
         )}
 
-        {/* AI Solution Response Card */}
+        {/* Solution Container */}
         {solution && (
-          <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 shadow-2xl space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
-              <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-                <CheckCircle className="w-5 h-5" />
-                <span>AI Verified Solution & Shortcut</span>
+          <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-700/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-white">Step-by-Step Solution Breakdown</h3>
+                  <p className="text-[11px] text-slate-400">Review the pedagogical steps and formulas below</p>
+                </div>
               </div>
-              <span className="text-xs text-slate-400 font-mono">ShikshaIQ AI Engine</span>
+
+              {/* Text-to-Speech Control Bar */}
+              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-700/70 px-3 py-1.5 rounded-xl">
+                <button
+                  type="button"
+                  onClick={handleToggleSpeech}
+                  className="flex items-center gap-1.5 text-xs font-medium text-purple-300 hover:text-purple-200 transition cursor-pointer"
+                  title={isSpeaking && !isPaused ? "Pause Audio" : "Listen to Solution"}
+                >
+                  {isSpeaking && !isPaused ? (
+                    <>
+                      <Pause className="w-3.5 h-3.5" />
+                      <span>Pause Voice</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>{isPaused ? "Resume Voice" : "Listen Audio"}</span>
+                    </>
+                  )}
+                </button>
+
+                {isSpeaking && (
+                  <button
+                    type="button"
+                    onClick={handleStopSpeech}
+                    className="text-slate-400 hover:text-rose-400 p-1 transition cursor-pointer border-l border-slate-700/60 pl-2"
+                    title="Stop Audio"
+                  >
+                    <VolumeX className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-sans">
-              {solution}
+            {/* Markdown Output */}
+            <div className="text-sm text-slate-200 leading-relaxed space-y-3 prose prose-invert max-w-none">
+              <ReactMarkdown>{solution}</ReactMarkdown>
             </div>
           </div>
         )}
