@@ -30,7 +30,11 @@ export default function App() {
         <Route path="/jobs" element={<JobAlerts />} />
         <Route path="/current-affairs" element={<CurrentAffairs />} />
         <Route path="/doubts" element={<DoubtSolver />} />
+        
+        {/* Mock Test route + alias for trailing dot */}
         <Route path="/mock-test" element={<MockTest />} />
+        <Route path="/mock-test." element={<Navigate to="/mock-test" replace />} />
+        
         <Route path="/admin" element={<AdminPanel />} />
         <Route
           path="/leaderboard"
@@ -40,6 +44,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Catch-all fallback redirect */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );
