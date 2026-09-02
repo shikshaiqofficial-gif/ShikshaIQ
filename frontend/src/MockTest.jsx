@@ -6,6 +6,7 @@ import html2canvas from 'html2canvas';
 import { 
   Clock, 
   CheckCircle2, 
+  XCircle,
   AlertCircle, 
   Award, 
   ChevronRight, 
@@ -13,7 +14,11 @@ import {
   RotateCcw,
   BookOpen,
   Download,
-  Loader2
+  Loader2,
+  Check,
+  X,
+  HelpCircle,
+  ListOrdered
 } from 'lucide-react';
 
 export default function MockTest() {
@@ -32,7 +37,10 @@ export default function MockTest() {
   const [submitting, setSubmitting] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  // Fetch Questions
+  // Post-test Review State
+  const [activeResultTab, setActiveResultTab] = useState('summary'); // 'summary' | 'review'
+  const [reviewFilter, setReviewFilter] = useState('ALL'); // 'ALL' | 'INCORRECT' | 'UNATTEMPTED' | 'CORRECT'
+
   useEffect(() => {
     fetchQuestions();
   }, []);
@@ -57,7 +65,6 @@ export default function MockTest() {
     }
   };
 
-  // Timer countdown
   useEffect(() => {
     if (isSubmitted || loading || questions.length === 0) return;
 
@@ -151,7 +158,6 @@ export default function MockTest() {
     }
   };
 
-  // PDF Download Generator
   const handleDownloadPDF = async () => {
     if (!scorecardRef.current) return;
     try {
@@ -161,7 +167,7 @@ export default function MockTest() {
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#0f172a' // Clean slate-900 background matching theme
+        backgroundColor: '#0f172a'
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -190,7 +196,6 @@ export default function MockTest() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Loading State
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
@@ -202,7 +207,6 @@ export default function MockTest() {
     );
   }
 
-  // Error State
   if (error || questions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6">
@@ -233,118 +237,311 @@ export default function MockTest() {
 
   const currentQ = questions[currentIndex];
 
+  // Filter questions for review
+  const filteredReviewQuestions = questions.filter((q) => {
+    const userChoice = userAnswers[q._id];
+    const isAttempted = userChoice !== undefined && userChoice !== null;
+    const isCorrect = isAttempted && userChoice === q.correctOptionIndex;
+
+    if (reviewFilter === 'INCORRECT') return isAttempted && !isCorrect;
+    if (reviewFilter === 'UNATTEMPTED') return !isAttempted;
+    if (reviewFilter === 'CORRECT') return isCorrect;
+    return true;
+  });
+
   // ==========================================
-  // RESULT & SCORECARD VIEW
+  // RESULT & REVIEW VIEW
   // ==========================================
   if (isSubmitted && result) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white p-6 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-slate-900 text-slate-100 p-6 flex flex-col items-center">
         
-        {/* Printable Scorecard Card */}
-        <div 
-          ref={scorecardRef}
-          className="max-w-xl w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl space-y-6"
-        >
-          {/* Header */}
-          <div className="text-center space-y-2 border-b border-slate-700/60 pb-5">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-xs font-bold tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                ShikshaIQ Official Performance Card
-              </span>
-            </div>
-            <div className="w-16 h-16 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Award className="w-8 h-8" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">Test Performance Report</h1>
-            <p className="text-sm text-slate-400">
-              Exam: <span className="text-slate-200 font-medium">{questions[0]?.exam || 'SSC Examination'}</span> • Completed in {formatTime(result.timeTakenSeconds || 0)}
-            </p>
+        {/* Result Mode Switcher */}
+        <div className="max-w-2xl w-full flex items-center justify-center mb-6">
+          <div className="bg-slate-800 border border-slate-700 p-1 rounded-xl flex gap-1">
+            <button
+              onClick={() => setActiveResultTab('summary')}
+              className={`px-5 py-2 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-2 ${
+                activeResultTab === 'summary'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              <span>Score Summary</span>
+            </button>
+            <button
+              onClick={() => setActiveResultTab('review')}
+              className={`px-5 py-2 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-2 ${
+                activeResultTab === 'review'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <ListOrdered className="w-4 h-4" />
+              <span>Review Solutions ({questions.length})</span>
+            </button>
           </div>
-
-          {/* Key Metrics Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
-              <span className="text-xs text-slate-400 font-medium">Score Obtained</span>
-              <p className="text-3xl font-extrabold text-indigo-400 mt-1">
-                {result.score} <span className="text-sm text-slate-500 font-normal">/ {result.totalMarks}</span>
-              </p>
-            </div>
-            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
-              <span className="text-xs text-slate-400 font-medium">Overall Accuracy</span>
-              <p className="text-3xl font-extrabold text-emerald-400 mt-1">
-                {result.accuracy}%
-              </p>
-            </div>
-            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
-              <span className="text-xs text-slate-400 font-medium">Correct Answers</span>
-              <p className="text-2xl font-bold text-emerald-400 mt-1">
-                {result.correct} <span className="text-xs text-slate-500 font-normal">/{result.totalQuestions} Qs</span>
-              </p>
-            </div>
-            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
-              <span className="text-xs text-slate-400 font-medium">Negative / Incorrect</span>
-              <p className="text-2xl font-bold text-rose-400 mt-1">
-                {result.incorrect} <span className="text-xs text-slate-500 font-normal">Qs penalty</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Breakdown Summary */}
-          <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/40 text-xs text-slate-400 space-y-1.5">
-            <div className="flex justify-between">
-              <span>Total Questions:</span>
-              <span className="text-slate-200 font-medium">{result.totalQuestions}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Attempted:</span>
-              <span className="text-slate-200 font-medium">{result.attempted}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Unattempted:</span>
-              <span className="text-slate-200 font-medium">{result.totalQuestions - result.attempted}</span>
-            </div>
-          </div>
-
-          <p className="text-[11px] text-center text-slate-500 pt-1">
-            Generated via ShikshaIQ Platform • AI-Powered Competitive Exam Preparation
-          </p>
         </div>
 
-        {/* Action Buttons (Excluded from PDF) */}
-        <div className="max-w-xl w-full mt-6 space-y-3">
-          <button
-            onClick={handleDownloadPDF}
-            disabled={downloadingPdf}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 cursor-pointer"
-          >
-            {downloadingPdf ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Preparing PDF Document...</span>
-              </>
+        {activeResultTab === 'summary' ? (
+          <div className="max-w-xl w-full flex flex-col items-center">
+            {/* Printable Scorecard */}
+            <div 
+              ref={scorecardRef}
+              className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl space-y-6"
+            >
+              <div className="text-center space-y-2 border-b border-slate-700/60 pb-5">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-xs font-bold tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                    ShikshaIQ Official Performance Card
+                  </span>
+                </div>
+                <div className="w-16 h-16 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Award className="w-8 h-8" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight">Test Performance Report</h1>
+                <p className="text-sm text-slate-400">
+                  Exam: <span className="text-slate-200 font-medium">{questions[0]?.exam || 'SSC Examination'}</span> • Completed in {formatTime(result.timeTakenSeconds || 0)}
+                </p>
+              </div>
+
+              {/* Key Metrics Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
+                  <span className="text-xs text-slate-400 font-medium">Score Obtained</span>
+                  <p className="text-3xl font-extrabold text-indigo-400 mt-1">
+                    {result.score} <span className="text-sm text-slate-500 font-normal">/ {result.totalMarks}</span>
+                  </p>
+                </div>
+                <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
+                  <span className="text-xs text-slate-400 font-medium">Overall Accuracy</span>
+                  <p className="text-3xl font-extrabold text-emerald-400 mt-1">
+                    {result.accuracy}%
+                  </p>
+                </div>
+                <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
+                  <span className="text-xs text-slate-400 font-medium">Correct Answers</span>
+                  <p className="text-2xl font-bold text-emerald-400 mt-1">
+                    {result.correct} <span className="text-xs text-slate-500 font-normal">/{result.totalQuestions} Qs</span>
+                  </p>
+                </div>
+                <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
+                  <span className="text-xs text-slate-400 font-medium">Negative / Incorrect</span>
+                  <p className="text-2xl font-bold text-rose-400 mt-1">
+                    {result.incorrect} <span className="text-xs text-slate-500 font-normal">penalty</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Summary Stats */}
+              <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/40 text-xs text-slate-400 space-y-1.5">
+                <div className="flex justify-between">
+                  <span>Total Questions:</span>
+                  <span className="text-slate-200 font-medium">{result.totalQuestions}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Attempted:</span>
+                  <span className="text-slate-200 font-medium">{result.attempted}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Unattempted:</span>
+                  <span className="text-slate-200 font-medium">{result.totalQuestions - result.attempted}</span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-center text-slate-500 pt-1">
+                Generated via ShikshaIQ Platform • AI-Powered Competitive Exam Preparation
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="w-full mt-6 space-y-3">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={downloadingPdf}
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 cursor-pointer text-sm"
+              >
+                {downloadingPdf ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Preparing PDF Document...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5" />
+                    <span>Download Official Scorecard (PDF)</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveResultTab('review')}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 text-sm cursor-pointer shadow-lg shadow-indigo-900/20"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Review All Question Solutions</span>
+              </button>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => navigate('/leaderboard')}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium rounded-xl transition text-xs cursor-pointer"
+                >
+                  View Leaderboard
+                </button>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium rounded-xl transition text-xs cursor-pointer"
+                >
+                  Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ==========================================
+             DETAILED QUESTION SOLUTIONS REVIEW
+             ========================================== */
+          <div className="max-w-3xl w-full space-y-6">
+            {/* Filter Chips */}
+            <div className="bg-slate-800 border border-slate-700 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-slate-300">Filter Questions:</span>
+              <div className="flex gap-2">
+                {[
+                  { id: 'ALL', label: `All (${questions.length})` },
+                  { id: 'INCORRECT', label: `Incorrect (${result.incorrect})` },
+                  { id: 'UNATTEMPTED', label: `Skipped (${result.totalQuestions - result.attempted})` },
+                  { id: 'CORRECT', label: `Correct (${result.correct})` }
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setReviewFilter(f.id)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                      reviewFilter === f.id
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'bg-slate-900 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Questions List */}
+            {filteredReviewQuestions.length === 0 ? (
+              <div className="py-16 text-center bg-slate-800/40 border border-slate-700/60 rounded-2xl">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                <p className="text-sm text-slate-300 font-medium">No questions match this filter.</p>
+              </div>
             ) : (
-              <>
-                <Download className="w-5 h-5" />
-                <span>Download Official Scorecard (PDF)</span>
-              </>
-            )}
-          </button>
+              <div className="space-y-4">
+                {filteredReviewQuestions.map((q, idx) => {
+                  const originalIndex = questions.findIndex(orig => orig._id === q._id);
+                  const userChoice = userAnswers[q._id];
+                  const isAttempted = userChoice !== undefined && userChoice !== null;
+                  const isCorrect = isAttempted && userChoice === q.correctOptionIndex;
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => navigate('/leaderboard')}
-              className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition cursor-pointer"
-            >
-              View Leaderboard
-            </button>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold rounded-xl transition cursor-pointer"
-            >
-              Back to Dashboard
-            </button>
+                  return (
+                    <div
+                      key={q._id || idx}
+                      className={`bg-slate-800/80 border rounded-2xl p-6 space-y-4 shadow-xl ${
+                        !isAttempted
+                          ? 'border-slate-700'
+                          : isCorrect
+                          ? 'border-emerald-500/40'
+                          : 'border-rose-500/40'
+                      }`}
+                    >
+                      {/* Question Header */}
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-300">Q{originalIndex + 1}.</span>
+                          <span className="bg-slate-700/70 text-slate-300 px-2 py-0.5 rounded text-[11px]">
+                            {q.subject}
+                          </span>
+                        </div>
+                        <div>
+                          {!isAttempted ? (
+                            <span className="text-slate-400 bg-slate-900 px-2.5 py-0.5 rounded-full border border-slate-700">
+                              Unattempted
+                            </span>
+                          ) : isCorrect ? (
+                            <span className="text-emerald-300 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Correct (+{q.marks || 2})
+                            </span>
+                          ) : (
+                            <span className="text-rose-300 bg-rose-500/20 px-2.5 py-0.5 rounded-full border border-rose-500/30 flex items-center gap-1">
+                              <X className="w-3 h-3" /> Incorrect (-{q.negativeMarks || 0.5})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Question Text */}
+                      <p className="text-sm font-medium text-slate-100 leading-relaxed">
+                        {q.questionText}
+                      </p>
+
+                      {/* Options Breakdown */}
+                      <div className="space-y-2">
+                        {q.options.map((opt, oIdx) => {
+                          const isTheCorrectOption = oIdx === q.correctOptionIndex;
+                          const isTheUserOption = userChoice === oIdx;
+
+                          let optionStyle = "bg-slate-900/50 border-slate-700/60 text-slate-300";
+                          if (isTheCorrectOption) {
+                            optionStyle = "bg-emerald-500/15 border-emerald-500/60 text-emerald-200 font-medium";
+                          } else if (isTheUserOption && !isTheCorrectOption) {
+                            optionStyle = "bg-rose-500/15 border-rose-500/60 text-rose-200 font-medium";
+                          }
+
+                          return (
+                            <div
+                              key={oIdx}
+                              className={`p-3 rounded-xl border text-xs flex items-center justify-between ${optionStyle}`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[11px]">
+                                  {String.fromCharCode(65 + oIdx)}
+                                </span>
+                                <span>{opt}</span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold">
+                                {isTheCorrectOption && (
+                                  <span className="text-emerald-400 flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Correct Answer
+                                  </span>
+                                )}
+                                {isTheUserOption && !isTheCorrectOption && (
+                                  <span className="text-rose-400 flex items-center gap-1">
+                                    <XCircle className="w-3.5 h-3.5" /> Your Choice
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Detailed Solution / Explanation */}
+                      {q.explanation && (
+                        <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-1">
+                          <span className="text-indigo-400 font-bold block">
+                            Step-by-Step Explanation:
+                          </span>
+                          <p className="leading-relaxed">{q.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
       </div>
     );
@@ -353,7 +550,6 @@ export default function MockTest() {
   // Active Test Arena View
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      {/* Top Header */}
       <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-6 flex items-center justify-between backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <BookOpen className="w-5 h-5 text-indigo-400" />
@@ -383,10 +579,8 @@ export default function MockTest() {
         </div>
       </header>
 
-      {/* Main Content Arena */}
+      {/* Arena Grid */}
       <div className="flex-1 max-w-6xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Left 3 cols: Question Panel */}
         <div className="lg:col-span-3 bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 flex flex-col justify-between">
           <div>
             <div className="flex justify-between items-center text-xs text-slate-400 pb-4 border-b border-slate-700/50 mb-6">
@@ -398,7 +592,6 @@ export default function MockTest() {
               {currentQ.questionText}
             </h2>
 
-            {/* Options List */}
             <div className="space-y-3">
               {currentQ.options.map((opt, idx) => {
                 const isSelected = userAnswers[currentQ._id] === idx;
@@ -427,7 +620,6 @@ export default function MockTest() {
             </div>
           </div>
 
-          {/* Question Nav Buttons */}
           <div className="pt-8 flex items-center justify-between border-t border-slate-700/50 mt-6">
             <button
               onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
@@ -456,7 +648,7 @@ export default function MockTest() {
           </div>
         </div>
 
-        {/* Right col: Question Palette */}
+        {/* Palette */}
         <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col">
           <h3 className="text-sm font-semibold text-slate-200 mb-4">Question Palette</h3>
           
@@ -469,13 +661,9 @@ export default function MockTest() {
                   key={q._id || idx}
                   onClick={() => setCurrentIndex(idx)}
                   className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center cursor-pointer ${
-                    isCurrent
-                      ? 'ring-2 ring-indigo-400 font-extrabold'
-                      : ''
+                    isCurrent ? 'ring-2 ring-indigo-400 font-extrabold' : ''
                   } ${
-                    isAnswered
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'
+                    isAnswered ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
                   {idx + 1}
