@@ -12,6 +12,7 @@ import DoubtSolver from './DoubtSolver';
 import CurrentAffairs from './CurrentAffairs';
 import JobAlerts from './JobAlerts';
 import AdminPanel from './AdminPanel';
+import FormulaFlashcards from './FormulaFlashcards';
 
 // Components
 import ProtectedRoute from './ProtectedRoute';
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/current-affairs" element={<CurrentAffairs />} />
           <Route path="/jobs" element={<JobAlerts />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/flashcards" element={<FormulaFlashcards />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

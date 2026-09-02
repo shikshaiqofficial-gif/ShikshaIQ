@@ -401,6 +401,18 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Access Navigation Tiles */}
+        <button
+  onClick={() => navigate('/flashcards')}
+  className="p-4 bg-slate-800/60 border border-slate-700/60 hover:border-slate-500 rounded-2xl text-left space-y-2 transition cursor-pointer group"
+>
+  <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+    <Sparkles className="w-4 h-4" />
+  </div>
+  <h4 className="text-xs sm:text-sm font-bold text-slate-100 group-hover:text-purple-400 transition">
+    Formula Flashcards
+  </h4>
+  <p className="text-[11px] text-slate-400">High-yield Math & Reasoning shortcuts</p>
+</button>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <button
             onClick={() => navigate('/current-affairs')}
