@@ -318,6 +318,17 @@ cron.schedule('1 0 * * *', async () => {
 // API ROUTES
 // ----------------------------------------------------
 
+// Root Route (Prevents 404 on base domain visits & keeps Render awake)
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'online',
+    service: 'ShikshaIQ AI Engine & Mock Test Backend',
+    version: '1.0.0',
+    documentation: '/api/health',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // 1. Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
