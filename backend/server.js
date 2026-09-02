@@ -22,11 +22,10 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, postman, direct browser hits)
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
-    return callback(null, true); // Fallback open in development
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -226,7 +225,6 @@ app.get('/api/questions', async (req, res) => {
 app.post('/api/tests/submit', verifyToken, async (req, res) => {
   try {
     const { exam, answers, timeTakenSeconds } = req.body; 
-    // answers format: [{ questionId, selectedOptionIndex }]
 
     if (!answers || !Array.isArray(answers)) {
       return res.status(400).json({ success: false, message: 'Answers payload must be an array.' });
@@ -311,7 +309,8 @@ app.post('/api/doubts/solve', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide a question or an image.' });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    // Updated model targeting gemini-3.6-flash
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
     const systemPrompt = `You are the expert tutor of Shiksha IQ, specializing in competitive exams (SSC CGL, CHSL, RRB NTPC, Banking). 
 Provide a clear, structured, step-by-step solution.
