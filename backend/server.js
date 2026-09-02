@@ -1,6 +1,6 @@
 require('dotenv').config();
 const dns = require('node:dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']); // Stabilizes MongoDB Atlas SRV DNS lookups
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Stabilizes MongoDB Atlas SRV lookup
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -14,7 +14,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'shikshaiq_super_secret_jwt_key_2026';
 
-// Initialize Gemini Client
+// ----------------------------------------------------
+// GEMINI SDK CLIENT INITIALIZATION
+// ----------------------------------------------------
 let ai = null;
 if (process.env.GEMINI_API_KEY) {
   ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -145,13 +147,12 @@ const verifyToken = (req, res, next) => {
 };
 
 // ----------------------------------------------------
-// RESILIENT GEMINI INVOCATION HELPER
+// CENTRALIZED GEMINI CALL (MANDATES gemini-3.6-flash)
 // ----------------------------------------------------
-// Cycles through candidate models to guarantee generation even if one returns 404
 async function invokeGeminiWithFallback(contents) {
   if (!ai) throw new Error('GEMINI_API_KEY is not configured on the server.');
 
-  const modelCandidates = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+  const modelCandidates = ['gemini-3.6-flash'];
   let lastError = null;
 
   for (const modelName of modelCandidates) {
@@ -160,16 +161,18 @@ async function invokeGeminiWithFallback(contents) {
         model: modelName,
         contents: contents
       });
-      if (response && response.text) {
-        return response.text;
+
+      const extractedText = response?.text || response?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (extractedText) {
+        return extractedText;
       }
     } catch (err) {
       lastError = err;
-      console.warn(`Model ${modelName} call failed (${err.message}). Trying next candidate...`);
+      console.warn(`Model ${modelName} call failed (${err.message}).`);
     }
   }
 
-  throw lastError || new Error('All Gemini model candidates failed.');
+  throw lastError || new Error('Gemini generation failed.');
 }
 
 // ----------------------------------------------------
@@ -308,10 +311,8 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
   return saved;
 }
 
-// Scheduled Midnight Job (00:01 AM)
 cron.schedule('1 0 * * *', async () => {
   if (ai) {
-    console.log('[Cron] Initiating midnight 100-question mock generation...');
     try {
       await getOrGenerate100DailyMock('SSC CGL');
     } catch (err) {
@@ -566,7 +567,7 @@ app.delete('/api/questions/:id', async (req, res) => {
   }
 });
 
-// Test Submission & Scoring Route
+// Test Submission Route
 app.post('/api/tests/submit', verifyToken, async (req, res) => {
   try {
     const { exam, answers, timeTakenSeconds } = req.body;
@@ -664,7 +665,7 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
-// Multimodal Doubt Solver
+// Multimodal Doubt Solver (Guaranteed gemini-3.6-flash execution)
 app.post('/api/doubts/solve', async (req, res) => {
   try {
     const { question, subject, imageBase64 } = req.body;
