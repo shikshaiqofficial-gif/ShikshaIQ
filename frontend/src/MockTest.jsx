@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from './api';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { 
   Clock, 
   CheckCircle2, 
@@ -9,11 +11,15 @@ import {
   ChevronRight, 
   ChevronLeft, 
   RotateCcw,
-  BookOpen
+  BookOpen,
+  Download,
+  Loader2
 } from 'lucide-react';
 
 export default function MockTest() {
   const navigate = useNavigate();
+  const scorecardRef = useRef(null);
+
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,6 +30,7 @@ export default function MockTest() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Fetch Questions
   useEffect(() => {
@@ -34,9 +41,7 @@ export default function MockTest() {
     try {
       setLoading(true);
       setError(null);
-      // Fetch up to 20 questions
       const res = await API.get('/questions?limit=20');
-      
       const list = res.data?.questions || (Array.isArray(res.data) ? res.data : []);
       
       if (list.length === 0) {
@@ -97,7 +102,6 @@ export default function MockTest() {
     try {
       const token = localStorage.getItem('shiksha_token');
       if (token) {
-        // Submit to API for full score calculation and leaderboard recording
         const res = await API.post('/tests/submit', {
           exam: questions[0]?.exam || 'SSC Mock Test',
           answers: formattedAnswers,
@@ -105,7 +109,6 @@ export default function MockTest() {
         });
         setResult(res.data.result);
       } else {
-        // Fallback local scoring if student is taking test as guest
         let correct = 0;
         let incorrect = 0;
         let totalScore = 0;
@@ -148,6 +151,39 @@ export default function MockTest() {
     }
   };
 
+  // PDF Download Generator
+  const handleDownloadPDF = async () => {
+    if (!scorecardRef.current) return;
+    try {
+      setDownloadingPdf(true);
+
+      const element = scorecardRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#0f172a' // Clean slate-900 background matching theme
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+      pdf.save(`ShikshaIQ_Scorecard_${result?.exam || 'MockTest'}.pdf`);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -166,7 +202,7 @@ export default function MockTest() {
     );
   }
 
-  // Error / No Questions State
+  // Error State
   if (error || questions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6">
@@ -197,53 +233,119 @@ export default function MockTest() {
 
   const currentQ = questions[currentIndex];
 
-  // Result / Scorecard View
+  // ==========================================
+  // RESULT & SCORECARD VIEW
+  // ==========================================
   if (isSubmitted && result) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white p-6 flex items-center justify-center">
-        <div className="max-w-xl w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-3">
+      <div className="min-h-screen bg-slate-900 text-white p-6 flex flex-col items-center justify-center">
+        
+        {/* Printable Scorecard Card */}
+        <div 
+          ref={scorecardRef}
+          className="max-w-xl w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl space-y-6"
+        >
+          {/* Header */}
+          <div className="text-center space-y-2 border-b border-slate-700/60 pb-5">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-xs font-bold tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                ShikshaIQ Official Performance Card
+              </span>
+            </div>
+            <div className="w-16 h-16 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-2">
               <Award className="w-8 h-8" />
             </div>
-            <h1 className="text-2xl font-bold">Test Performance Report</h1>
-            <p className="text-sm text-slate-400">{questions[0]?.exam || 'SSC Examination'} Mock Test</p>
+            <h1 className="text-2xl font-bold tracking-tight">Test Performance Report</h1>
+            <p className="text-sm text-slate-400">
+              Exam: <span className="text-slate-200 font-medium">{questions[0]?.exam || 'SSC Examination'}</span> • Completed in {formatTime(result.timeTakenSeconds || 0)}
+            </p>
           </div>
 
+          {/* Key Metrics Grid */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
-              <span className="text-xs text-slate-400">Total Score</span>
-              <p className="text-2xl font-bold text-indigo-400">{result.score} <span className="text-sm text-slate-500">/ {result.totalMarks}</span></p>
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
+              <span className="text-xs text-slate-400 font-medium">Score Obtained</span>
+              <p className="text-3xl font-extrabold text-indigo-400 mt-1">
+                {result.score} <span className="text-sm text-slate-500 font-normal">/ {result.totalMarks}</span>
+              </p>
             </div>
-            <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
-              <span className="text-xs text-slate-400">Accuracy</span>
-              <p className="text-2xl font-bold text-emerald-400">{result.accuracy}%</p>
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
+              <span className="text-xs text-slate-400 font-medium">Overall Accuracy</span>
+              <p className="text-3xl font-extrabold text-emerald-400 mt-1">
+                {result.accuracy}%
+              </p>
             </div>
-            <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
-              <span className="text-xs text-slate-400">Correct Answers</span>
-              <p className="text-xl font-bold text-emerald-400">{result.correct} <span className="text-xs text-slate-500">questions</span></p>
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
+              <span className="text-xs text-slate-400 font-medium">Correct Answers</span>
+              <p className="text-2xl font-bold text-emerald-400 mt-1">
+                {result.correct} <span className="text-xs text-slate-500 font-normal">/{result.totalQuestions} Qs</span>
+              </p>
             </div>
-            <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
-              <span className="text-xs text-slate-400">Negative / Wrong</span>
-              <p className="text-xl font-bold text-rose-400">{result.incorrect} <span className="text-xs text-slate-500">questions</span></p>
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700/50">
+              <span className="text-xs text-slate-400 font-medium">Negative / Incorrect</span>
+              <p className="text-2xl font-bold text-rose-400 mt-1">
+                {result.incorrect} <span className="text-xs text-slate-500 font-normal">Qs penalty</span>
+              </p>
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          {/* Breakdown Summary */}
+          <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/40 text-xs text-slate-400 space-y-1.5">
+            <div className="flex justify-between">
+              <span>Total Questions:</span>
+              <span className="text-slate-200 font-medium">{result.totalQuestions}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Attempted:</span>
+              <span className="text-slate-200 font-medium">{result.attempted}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Unattempted:</span>
+              <span className="text-slate-200 font-medium">{result.totalQuestions - result.attempted}</span>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-center text-slate-500 pt-1">
+            Generated via ShikshaIQ Platform • AI-Powered Competitive Exam Preparation
+          </p>
+        </div>
+
+        {/* Action Buttons (Excluded from PDF) */}
+        <div className="max-w-xl w-full mt-6 space-y-3">
+          <button
+            onClick={handleDownloadPDF}
+            disabled={downloadingPdf}
+            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 cursor-pointer"
+          >
+            {downloadingPdf ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Preparing PDF Document...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                <span>Download Official Scorecard (PDF)</span>
+              </>
+            )}
+          </button>
+
+          <div className="flex gap-3">
             <button
               onClick={() => navigate('/leaderboard')}
-              className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition"
+              className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition cursor-pointer"
             >
               View Leaderboard
             </button>
             <button
               onClick={() => navigate('/dashboard')}
-              className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl transition"
+              className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold rounded-xl transition cursor-pointer"
             >
-              Dashboard
+              Back to Dashboard
             </button>
           </div>
         </div>
+
       </div>
     );
   }
@@ -274,7 +376,7 @@ export default function MockTest() {
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold rounded-lg transition"
+            className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold rounded-lg transition cursor-pointer"
           >
             {submitting ? 'Submitting...' : 'Submit Test'}
           </button>
@@ -304,7 +406,7 @@ export default function MockTest() {
                   <button
                     key={idx}
                     onClick={() => handleSelectOption(currentQ._id, idx)}
-                    className={`w-full text-left p-4 rounded-xl border transition flex items-center justify-between ${
+                    className={`w-full text-left p-4 rounded-xl border transition flex items-center justify-between cursor-pointer ${
                       isSelected
                         ? 'bg-indigo-600/20 border-indigo-500 text-indigo-200'
                         : 'bg-slate-900/50 border-slate-700 hover:bg-slate-700/40 text-slate-300'
@@ -330,7 +432,7 @@ export default function MockTest() {
             <button
               onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
               disabled={currentIndex === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 rounded-xl text-sm font-medium transition"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 rounded-xl text-sm font-medium transition cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" /> Previous
             </button>
@@ -338,7 +440,7 @@ export default function MockTest() {
             {userAnswers[currentQ._id] !== undefined && (
               <button
                 onClick={() => handleClearOption(currentQ._id)}
-                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Clear Response
               </button>
@@ -347,7 +449,7 @@ export default function MockTest() {
             <button
               onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))}
               disabled={currentIndex === questions.length - 1}
-              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 rounded-xl text-sm font-medium transition"
+              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 rounded-xl text-sm font-medium transition cursor-pointer"
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
@@ -366,7 +468,7 @@ export default function MockTest() {
                 <button
                   key={q._id || idx}
                   onClick={() => setCurrentIndex(idx)}
-                  className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center ${
+                  className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center cursor-pointer ${
                     isCurrent
                       ? 'ring-2 ring-indigo-400 font-extrabold'
                       : ''
