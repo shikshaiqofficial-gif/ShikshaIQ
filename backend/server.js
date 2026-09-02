@@ -151,7 +151,7 @@ const verifyToken = (req, res, next) => {
 async function invokeGeminiWithFallback(contents) {
   if (!ai) throw new Error('GEMINI_API_KEY is not configured on the server.');
 
-  const modelCandidates = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+  const modelCandidates = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
   let lastError = null;
 
   for (const modelName of modelCandidates) {
