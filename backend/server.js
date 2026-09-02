@@ -1,6 +1,6 @@
 require('dotenv').config();
 const dns = require('node:dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']); // Stabilizes MongoDB Atlas SRV lookup on Indian ISPs
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Stabilizes MongoDB Atlas SRV DNS lookups
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'shikshaiq_super_secret_jwt_key_2026';
 
-// Initialize Gemini Generative AI SDK (@google/genai syntax)
+// Initialize Gemini Client
 let ai = null;
 if (process.env.GEMINI_API_KEY) {
   ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -31,14 +31,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Accept up to 25MB for Base64 diagram uploads & large batch payloads
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
 
 // ----------------------------------------------------
 // MONGOOSE SCHEMAS & MODELS
 // ----------------------------------------------------
-// 1. User Schema
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -49,7 +47,6 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
-// 2. Question Schema
 const questionSchema = new mongoose.Schema({
   exam: { type: String, required: true, default: 'SSC CGL' },
   subject: { type: String, required: true },
@@ -66,9 +63,8 @@ const questionSchema = new mongoose.Schema({
 
 const Question = mongoose.models.Question || mongoose.model('Question', questionSchema);
 
-// 3. Daily 100-Question Mock Test Schema (Per-Day MongoDB Cache)
 const dailyMockSchema = new mongoose.Schema({
-  dateKey: { type: String, required: true, index: true }, // Format: YYYY-MM-DD
+  dateKey: { type: String, required: true, index: true },
   exam: { type: String, default: 'SSC CGL' },
   totalQuestions: { type: Number, default: 100 },
   questions: [{
@@ -90,7 +86,6 @@ const dailyMockSchema = new mongoose.Schema({
 dailyMockSchema.index({ dateKey: 1, exam: 1 }, { unique: true });
 const DailyMock = mongoose.models.DailyMock || mongoose.model('DailyMock', dailyMockSchema);
 
-// 4. Test Submission Schema
 const testSubmissionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userName: { type: String, required: true },
@@ -107,7 +102,6 @@ const testSubmissionSchema = new mongoose.Schema({
 
 const TestSubmission = mongoose.models.TestSubmission || mongoose.model('TestSubmission', testSubmissionSchema);
 
-// 5. Current Affairs Schema
 const currentAffairSchema = new mongoose.Schema({
   title: { type: String, required: true },
   category: { type: String, default: 'National' },
@@ -119,7 +113,6 @@ const currentAffairSchema = new mongoose.Schema({
 
 const CurrentAffair = mongoose.models.CurrentAffair || mongoose.model('CurrentAffair', currentAffairSchema);
 
-// 6. Job Alert Schema
 const jobAlertSchema = new mongoose.Schema({
   title: { type: String, required: true },
   organization: { type: String, required: true },
@@ -152,6 +145,34 @@ const verifyToken = (req, res, next) => {
 };
 
 // ----------------------------------------------------
+// RESILIENT GEMINI INVOCATION HELPER
+// ----------------------------------------------------
+// Cycles through candidate models to guarantee generation even if one returns 404
+async function invokeGeminiWithFallback(contents) {
+  if (!ai) throw new Error('GEMINI_API_KEY is not configured on the server.');
+
+  const modelCandidates = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+  let lastError = null;
+
+  for (const modelName of modelCandidates) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: contents
+      });
+      if (response && response.text) {
+        return response.text;
+      }
+    } catch (err) {
+      lastError = err;
+      console.warn(`Model ${modelName} call failed (${err.message}). Trying next candidate...`);
+    }
+  }
+
+  throw lastError || new Error('All Gemini model candidates failed.');
+}
+
+// ----------------------------------------------------
 // 100-QUESTION DAILY ENGINE (BATCH GENERATION & CACHING)
 // ----------------------------------------------------
 const SECTIONS_CONFIG = [
@@ -177,7 +198,6 @@ const SECTIONS_CONFIG = [
   }
 ];
 
-// Helper to generate a single sub-batch using Gemini 2.5 Flash
 async function generateBatch(subject, count, topics, exam, dateKey) {
   if (!ai) return [];
 
@@ -209,17 +229,12 @@ Return ONLY a valid JSON array matching this exact schema:
   }
 ]
 
-Return strictly raw JSON. Do NOT include markdown code blocks, backticks, or introductory text.`;
+Return strictly raw JSON. Do NOT include markdown code blocks, backticks, or intro text.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt
-    });
-
-    let rawText = response.text ? response.text.trim() : '';
-    rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-    const arr = JSON.parse(rawText);
+    const rawOutput = await invokeGeminiWithFallback(prompt);
+    let cleanText = rawOutput.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+    const arr = JSON.parse(cleanText);
     return Array.isArray(arr) ? arr : [];
   } catch (err) {
     console.error(`Batch generation error for ${subject}:`, err.message);
@@ -227,11 +242,9 @@ Return strictly raw JSON. Do NOT include markdown code blocks, backticks, or int
   }
 }
 
-// Master synthesizer: builds 100 questions (25 per subject across 2 micro-batches)
 async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
   const todayKey = new Date().toISOString().split('T')[0];
 
-  // Check if today's test is already stored in MongoDB Atlas
   const existing = await DailyMock.findOne({ dateKey: todayKey, exam });
   if (existing && existing.questions?.length >= 95) {
     return existing;
@@ -240,13 +253,10 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
   console.log(`[AI Engine] Synthesizing 100-Question Daily Mock for ${todayKey} (${exam})...`);
   let questions = [];
 
-  // Generate 25 questions for each of the 4 sections
   for (const sec of SECTIONS_CONFIG) {
     let secQuestions = [];
 
     if (ai) {
-      console.log(`Generating questions for ${sec.subject}...`);
-      // Two micro-batches (13 + 12 = 25) avoid response token limits
       const [batchA, batchB] = await Promise.all([
         generateBatch(sec.subject, 13, sec.topics, exam, `${todayKey}_A`),
         generateBatch(sec.subject, 12, sec.topics, exam, `${todayKey}_B`)
@@ -254,7 +264,6 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
       secQuestions = [...batchA, ...batchB];
     }
 
-    // Pad from seeded Question collection if Gemini falls short
     if (secQuestions.length < sec.count) {
       const needed = sec.count - secQuestions.length;
       const dbSamples = await Question.find({ subject: sec.subject }).limit(needed);
@@ -264,7 +273,6 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
     questions = questions.concat(secQuestions);
   }
 
-  // Safety buffer to ensure 100 total items
   if (questions.length < 100) {
     const remaining = 100 - questions.length;
     const extra = await Question.find().limit(remaining);
@@ -282,10 +290,9 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
     correctOptionIndex: q.correctOptionIndex ?? 0,
     marks: q.marks || 2,
     negativeMarks: q.negativeMarks || 0.5,
-    explanation: q.explanation || 'Refer to standard formula sheet.'
+    explanation: q.explanation || 'Refer to standard derivation.'
   }));
 
-  // Upsert to MongoDB DailyMock collection
   const saved = await DailyMock.findOneAndUpdate(
     { dateKey: todayKey, exam },
     {
@@ -298,11 +305,10 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
     { upsert: true, new: true }
   );
 
-  console.log(`[AI Engine] Cached ${mappedQuestions.length} questions for ${todayKey}.`);
   return saved;
 }
 
-// Scheduled Midnight Job: Generates daily mock at 00:01 AM every night
+// Scheduled Midnight Job (00:01 AM)
 cron.schedule('1 0 * * *', async () => {
   if (ai) {
     console.log('[Cron] Initiating midnight 100-question mock generation...');
@@ -318,7 +324,7 @@ cron.schedule('1 0 * * *', async () => {
 // API ROUTES
 // ----------------------------------------------------
 
-// Root Route (Prevents 404 on base domain visits & keeps Render awake)
+// Root Route
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
@@ -329,12 +335,12 @@ app.get('/', (req, res) => {
   });
 });
 
-// 1. Health Check
+// Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// 2. Daily 100-Question Mock Test Route (with force refresh support)
+// Daily 100-Question Mock Test
 app.get('/api/tests/daily-100-mock', async (req, res) => {
   try {
     const { exam = 'SSC CGL', force = 'false' } = req.query;
@@ -350,7 +356,6 @@ app.get('/api/tests/daily-100-mock', async (req, res) => {
       });
     }
 
-    // Force refresh flag to wipe today's cache and regenerate with Gemini
     if (force === 'true') {
       const todayKey = new Date().toISOString().split('T')[0];
       await DailyMock.deleteOne({ dateKey: todayKey, exam });
@@ -375,7 +380,7 @@ app.get('/api/tests/daily-100-mock', async (req, res) => {
   }
 });
 
-// 3. Authentication Routes
+// Auth Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, targetExam } = req.body;
@@ -495,7 +500,7 @@ app.put('/api/auth/profile', verifyToken, async (req, res) => {
   }
 });
 
-// 4. Questions Management
+// Questions Routes
 app.get('/api/questions', async (req, res) => {
   try {
     const { exam, subject, difficulty, limit = 50 } = req.query;
@@ -527,7 +532,7 @@ app.post('/api/questions', async (req, res) => {
       negativeMarks,
       explanation
     } = req.body;
-    
+
     if (!questionText || !options || correctOptionIndex === undefined || !explanation) {
       return res.status(400).json({ success: false, message: 'Missing required question fields.' });
     }
@@ -561,7 +566,7 @@ app.delete('/api/questions/:id', async (req, res) => {
   }
 });
 
-// 5. Test Submission & Scoring Engine
+// Test Submission & Scoring Route
 app.post('/api/tests/submit', verifyToken, async (req, res) => {
   try {
     const { exam, answers, timeTakenSeconds } = req.body;
@@ -573,14 +578,12 @@ app.post('/api/tests/submit', verifyToken, async (req, res) => {
     const questionIds = answers.map(a => a.questionId);
     let questionMap = new Map();
 
-    // Check standard Question collection
     const validMongoIds = questionIds.filter(id => mongoose.Types.ObjectId.isValid(id));
     if (validMongoIds.length > 0) {
       const dbQuestions = await Question.find({ _id: { $in: validMongoIds } });
       dbQuestions.forEach(q => questionMap.set(q._id.toString(), q));
     }
 
-    // Check today's DailyMock collection
     const todayKey = new Date().toISOString().split('T')[0];
     const dailyMock = await DailyMock.findOne({ dateKey: todayKey });
     if (dailyMock) {
@@ -637,7 +640,7 @@ app.post('/api/tests/submit', verifyToken, async (req, res) => {
   }
 });
 
-// 6. Leaderboard Route
+// Leaderboard Route
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const submissions = await TestSubmission.find()
@@ -649,8 +652,7 @@ app.get('/api/leaderboard', async (req, res) => {
         success: true,
         leaderboard: [
           { _id: '1', userName: 'Ananya Sharma', exam: 'SSC CGL', score: 184, totalMarks: 200, accuracy: 96, timeTakenSeconds: 3200 },
-          { _id: '2', userName: 'Rahul Verma', exam: 'SSC CGL', score: 176, totalMarks: 200, accuracy: 92, timeTakenSeconds: 3450 },
-          { _id: '3', userName: 'Pooja Iyer', exam: 'RRB NTPC', score: 170, totalMarks: 200, accuracy: 90, timeTakenSeconds: 3500 }
+          { _id: '2', userName: 'Rahul Verma', exam: 'SSC CGL', score: 176, totalMarks: 200, accuracy: 92, timeTakenSeconds: 3450 }
         ]
       });
     }
@@ -662,7 +664,7 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
-// 7. Gemini Multimodal Doubt Solver (Text + Image Diagrams)
+// Multimodal Doubt Solver
 app.post('/api/doubts/solve', async (req, res) => {
   try {
     const { question, subject, imageBase64 } = req.body;
@@ -677,18 +679,18 @@ app.post('/api/doubts/solve', async (req, res) => {
     if (!process.env.GEMINI_API_KEY || !ai) {
       return res.status(500).json({
         success: false,
-        message: 'Gemini API key is not configured on the server.'
+        message: 'GEMINI_API_KEY is not configured in the environment variables.'
       });
     }
 
-    const systemPrompt = `You are ShikshaIQ's Master Exam Faculty for competitive exams (SSC CGL, RRB NTPC, Banking).
+    const systemPrompt = `You are ShikshaIQ's Master Exam Faculty for Indian competitive exams (SSC CGL, RRB NTPC, Banking).
 Subject Domain: ${subject || 'General Aptitude'}
 
 Analyze the candidate's question and any visual diagram. Provide:
-1. **Core Concept & Theorem**: Identify the rule.
+1. **Core Concept & Theorem**: Identify the fundamental rule.
 2. **Step-by-Step Derivation**: Line-by-line calculation.
-3. **Exam Shortcut / 30-Second Trick**: Fast solving technique for actual exam.
-4. **Final Answer**: Clearly state the correct option.`;
+3. **Exam Shortcut / 30-Second Trick**: Fast solving technique for the actual exam.
+4. **Final Answer**: Clearly state the correct option or value.`;
 
     const contents = [];
 
@@ -709,14 +711,10 @@ Analyze the candidate's question and any visual diagram. Provide:
       text: `${systemPrompt}\n\nCandidate Question Statement: ${question || 'Solve the question shown in the attached image.'}`
     });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: contents
-    });
-
-    res.json({ success: true, solution: response.text });
+    const solutionText = await invokeGeminiWithFallback(contents);
+    res.json({ success: true, solution: solutionText });
   } catch (error) {
-    console.error('Gemini vision doubt error:', error);
+    console.error('Gemini doubt solve error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to resolve doubt.'
@@ -724,13 +722,13 @@ Analyze the candidate's question and any visual diagram. Provide:
   }
 });
 
-// 8. Gemini Study Plan Generator
+// Study Plan Generator
 app.post('/api/study-plan/generate', verifyToken, async (req, res) => {
   try {
     const { targetExam, weakSubjects, recentScore, accuracy } = req.body;
 
     if (!process.env.GEMINI_API_KEY || !ai) {
-      return res.status(500).json({ success: false, message: 'Gemini API key is not configured.' });
+      return res.status(500).json({ success: false, message: 'GEMINI_API_KEY is not configured.' });
     }
 
     const prompt = `You are the lead academic mentor at ShikshaIQ.
@@ -750,24 +748,19 @@ Return raw JSON only matching this schema:
   ]
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt
-    });
-
-    let rawText = response.text.trim();
-    rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-    res.json({ success: true, plan: JSON.parse(rawText) });
+    const rawOutput = await invokeGeminiWithFallback(prompt);
+    let cleanText = rawOutput.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+    res.json({ success: true, plan: JSON.parse(cleanText) });
   } catch (error) {
     console.error('Study plan error:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate study plan.' });
+    res.status(500).json({ success: false, message: error.message || 'Failed to generate study plan.' });
   }
 });
 
-// 9. Current Affairs & Job Alerts Routes
+// Current Affairs & Jobs
 app.get('/api/current-affairs', async (req, res) => {
   try {
-    let items = await CurrentAffair.find().sort({ createdAt: -1 }).limit(10);
+    const items = await CurrentAffair.find().sort({ createdAt: -1 }).limit(10);
     res.json({ success: true, capsules: items });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch current affairs.' });
@@ -776,7 +769,7 @@ app.get('/api/current-affairs', async (req, res) => {
 
 app.get('/api/jobs', async (req, res) => {
   try {
-    let jobs = await JobAlert.find().sort({ createdAt: -1 }).limit(10);
+    const jobs = await JobAlert.find().sort({ createdAt: -1 }).limit(10);
     res.json({ success: true, jobs });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch jobs.' });
