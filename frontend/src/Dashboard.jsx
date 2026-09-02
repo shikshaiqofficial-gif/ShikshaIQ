@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from './api';
+import ThemeToggle from './ThemeToggle';
+import ProfileModal from './ProfileModal';
 import {
   Award,
   BookOpen,
@@ -12,7 +14,6 @@ import {
   BarChart3,
   Calendar,
   AlertCircle,
-  HelpCircle,
   Briefcase,
   Layers,
   ChevronRight,
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [recentResults, setRecentResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   // Gemini AI Study Plan State
   const [generatingPlan, setGeneratingPlan] = useState(false);
@@ -52,7 +54,6 @@ export default function Dashboard() {
     try {
       setLoading(true);
 
-      // Check token session
       const token = localStorage.getItem('shiksha_token');
       if (token) {
         try {
@@ -65,11 +66,8 @@ export default function Dashboard() {
         }
       }
 
-      // Fetch leaderboard results to calculate user performance benchmarks
       const res = await API.get('/leaderboard');
       const allResults = res.data?.leaderboard || [];
-      
-      // Filter recent user attempts or fallback to seeded performance stats
       setRecentResults(allResults.slice(0, 6));
     } catch (err) {
       console.error('Failed to load dashboard statistics:', err);
@@ -104,7 +102,6 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error('Study plan request failed:', err);
-      // Fallback AI plan if backend is waking up
       setStudyPlan({
         focusSummary: 'Your analytical accuracy in Reasoning is solid, but Quantitative speed and Geometry formula retention require targeted practice.',
         days: [
@@ -122,7 +119,6 @@ export default function Dashboard() {
     }
   };
 
-  // Mock Trend Chart Data
   const chartData = [
     { test: 'Test 1', score: 28, accuracy: 65 },
     { test: 'Test 2', score: 32, accuracy: 72 },
@@ -141,7 +137,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      {/* Top Header */}
+      {/* Top Navigation Header */}
       <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl flex items-center justify-center font-black text-lg">
@@ -154,12 +150,20 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 bg-slate-900/80 border border-slate-700 px-3 py-1 rounded-xl text-xs">
+          {/* Clickable Profile Badge */}
+          <button
+            onClick={() => setIsProfileOpen(true)}
+            className="hidden sm:flex items-center gap-2 bg-slate-900/80 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 px-3 py-1.5 rounded-xl text-xs transition cursor-pointer"
+            title="Edit Profile & Target Exam"
+          >
             <User className="w-3.5 h-3.5 text-indigo-400" />
             <span className="text-slate-300 font-medium">{user?.name || 'Aspirant'}</span>
             <span className="text-slate-500">•</span>
             <span className="text-amber-400 font-semibold">{user?.targetExam || 'SSC CGL'}</span>
-          </div>
+          </button>
+
+          {/* Persistent Theme Toggle */}
+          <ThemeToggle />
 
           <button
             onClick={handleLogout}
@@ -171,14 +175,14 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Main Container */}
+      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-indigo-950/70 via-slate-800/80 to-purple-950/40 border border-indigo-500/30 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
           <div className="space-y-1">
             <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-              Exam Target: {user?.targetExam || 'SSC CGL & Railway NTPC'}
+              Target Focus: {user?.targetExam || 'SSC CGL & Railway NTPC'}
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
               Welcome back, {user?.name ? user.name.split(' ')[0] : 'Champion'}!
@@ -251,7 +255,6 @@ export default function Dashboard() {
 
         {/* Performance Analytics Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left 8 Cols: Score & Accuracy Progression */}
           <div className="lg:col-span-8 bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
               <div>
@@ -294,7 +297,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Right 4 Cols: Subject Accuracy Breakdown */}
           <div className="lg:col-span-4 bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-4 flex flex-col justify-between">
             <div className="pb-2 border-b border-slate-700/50">
               <h3 className="text-sm font-bold text-slate-100">Subject-Wise Accuracy</h3>
@@ -401,18 +403,6 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Access Navigation Tiles */}
-        <button
-  onClick={() => navigate('/flashcards')}
-  className="p-4 bg-slate-800/60 border border-slate-700/60 hover:border-slate-500 rounded-2xl text-left space-y-2 transition cursor-pointer group"
->
-  <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-    <Sparkles className="w-4 h-4" />
-  </div>
-  <h4 className="text-xs sm:text-sm font-bold text-slate-100 group-hover:text-purple-400 transition">
-    Formula Flashcards
-  </h4>
-  <p className="text-[11px] text-slate-400">High-yield Math & Reasoning shortcuts</p>
-</button>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <button
             onClick={() => navigate('/current-affairs')}
@@ -441,6 +431,19 @@ export default function Dashboard() {
           </button>
 
           <button
+            onClick={() => navigate('/flashcards')}
+            className="p-4 bg-slate-800/60 border border-slate-700/60 hover:border-slate-500 rounded-2xl text-left space-y-2 transition cursor-pointer group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs sm:text-sm font-bold text-slate-100 group-hover:text-purple-400 transition">
+              Formula Flashcards
+            </h4>
+            <p className="text-[11px] text-slate-400">High-yield Math & Reasoning shortcuts</p>
+          </button>
+
+          <button
             onClick={() => navigate('/leaderboard')}
             className="p-4 bg-slate-800/60 border border-slate-700/60 hover:border-slate-500 rounded-2xl text-left space-y-2 transition cursor-pointer group"
           >
@@ -452,22 +455,17 @@ export default function Dashboard() {
             </h4>
             <p className="text-[11px] text-slate-400">Compare rank with national peers</p>
           </button>
-
-          <button
-            onClick={() => navigate('/admin')}
-            className="p-4 bg-slate-800/60 border border-slate-700/60 hover:border-slate-500 rounded-2xl text-left space-y-2 transition cursor-pointer group"
-          >
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <h4 className="text-xs sm:text-sm font-bold text-slate-100 group-hover:text-indigo-400 transition">
-              Admin Question Portal
-            </h4>
-            <p className="text-[11px] text-slate-400">Manage PYQ questions inventory</p>
-          </button>
         </div>
 
       </main>
+
+      {/* Target Exam & Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={user}
+        onUpdateUser={(updated) => setUser(updated)}
+      />
     </div>
   );
 }

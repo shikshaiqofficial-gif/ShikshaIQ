@@ -7,16 +7,16 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { GoogleGenerativeAI } = require('@google/genai');
+const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'shikshaiq_super_secret_jwt_key_2026';
 
-// Initialize Gemini Generative AI SDK
-let genAI = null;
+// Initialize Gemini Generative AI SDK (@google/genai syntax)
+let ai = null;
 if (process.env.GEMINI_API_KEY) {
-  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 } else {
   console.warn('WARNING: GEMINI_API_KEY is not defined in environment variables.');
 }
@@ -158,7 +158,11 @@ app.post('/api/auth/register', async (req, res) => {
       targetExam: targetExam || 'SSC CGL'
     });
 
-    const token = jwt.sign({ id: newUser._id, email: newUser.email, name: newUser.name }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: newUser._id, email: newUser.email, name: newUser.name },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.status(201).json({
       success: true,
@@ -193,7 +197,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid email or password.' });
     }
 
-    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: user._id, email: user.email, name: user.name },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.json({
       success: true,
@@ -221,6 +229,32 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
   }
 });
 
+app.put('/api/auth/profile', verifyToken, async (req, res) => {
+  try {
+    const { name, targetExam } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    if (name) user.name = name.trim();
+    if (targetExam) user.targetExam = targetExam;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        targetExam: user.targetExam
+      }
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update user profile.' });
+  }
+});
+
 // --- QUESTIONS MANAGEMENT ---
 app.get('/api/questions', async (req, res) => {
   try {
@@ -241,7 +275,18 @@ app.get('/api/questions', async (req, res) => {
 
 app.post('/api/questions', async (req, res) => {
   try {
-    const { exam, subject, topic, difficulty, questionText, options, correctOptionIndex, marks, negativeMarks, explanation } = req.body;
+    const {
+      exam,
+      subject,
+      topic,
+      difficulty,
+      questionText,
+      options,
+      correctOptionIndex,
+      marks,
+      negativeMarks,
+      explanation
+    } = req.body;
     
     if (!questionText || !options || correctOptionIndex === undefined || !explanation) {
       return res.status(400).json({ success: false, message: 'Missing required question fields.' });
@@ -279,7 +324,7 @@ app.delete('/api/questions/:id', async (req, res) => {
 // --- TEST SUBMISSION & SCORECARD ENGINE ---
 app.post('/api/tests/submit', verifyToken, async (req, res) => {
   try {
-    const { exam, answers, timeTakenSeconds } = req.body; // answers: [{ questionId, selectedOptionIndex }]
+    const { exam, answers, timeTakenSeconds } = req.body;
 
     if (!Array.isArray(answers)) {
       return res.status(400).json({ success: false, message: 'Invalid submission answers format.' });
@@ -342,7 +387,6 @@ app.get('/api/leaderboard', async (req, res) => {
       .sort({ score: -1, accuracy: -1, timeTakenSeconds: 1 })
       .limit(50);
 
-    // Provide default podium ranks if database is fresh
     if (submissions.length === 0) {
       return res.json({
         success: true,
@@ -373,14 +417,12 @@ app.post('/api/doubts/solve', async (req, res) => {
       });
     }
 
-    if (!process.env.GEMINI_API_KEY || !genAI) {
+    if (!process.env.GEMINI_API_KEY || !ai) {
       return res.status(500).json({
         success: false,
         message: 'Gemini API key is not configured on the server.'
       });
     }
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const systemPrompt = `You are ShikshaIQ's Master Exam Faculty for Indian competitive exams (SSC CGL, RRB NTPC, Banking).
 Subject Domain: ${subject || 'General Aptitude'}
@@ -394,7 +436,6 @@ Provide a structured pedagogical answer in clean Markdown:
 
     const contents = [];
 
-    // Multimodal Base64 Image handling
     if (imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
@@ -412,10 +453,12 @@ Provide a structured pedagogical answer in clean Markdown:
       text: `${systemPrompt}\n\nCandidate Question Statement: ${question || 'Solve the question presented in the attached image.'}`
     });
 
-    const result = await model.generateContent(contents);
-    const response = await result.response;
-    const solutionText = response.text();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: contents
+    });
 
+    const solutionText = response.text;
     res.json({ success: true, solution: solutionText });
   } catch (error) {
     console.error('Gemini vision doubt error:', error);
@@ -431,14 +474,12 @@ app.post('/api/study-plan/generate', verifyToken, async (req, res) => {
   try {
     const { targetExam, weakSubjects, recentScore, accuracy } = req.body;
 
-    if (!process.env.GEMINI_API_KEY || !genAI) {
+    if (!process.env.GEMINI_API_KEY || !ai) {
       return res.status(500).json({
         success: false,
         message: 'Gemini API key is not configured on the server.'
       });
     }
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `You are the lead academic mentor at ShikshaIQ for competitive exams.
 Student Profile:
@@ -464,14 +505,15 @@ The JSON object must strictly match this format:
 
 Return ONLY raw JSON, without markdown formatting, backticks, or extra commentary.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let rawText = response.text().trim();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt
+    });
 
+    let rawText = response.text.trim();
     rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
 
     const planData = JSON.parse(rawText);
-
     res.json({ success: true, plan: planData });
   } catch (error) {
     console.error('Study plan generation error:', error);

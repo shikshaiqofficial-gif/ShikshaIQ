@@ -1,51 +1,70 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './ThemeContext';
+import { Loader2 } from 'lucide-react';
+import NetworkStatus from './NetworkStatus';
 
-// Views
+// Static / Immediate Views
 import Home from './Home';
-import Login from './Login';
-import Register from './Register';
-import Dashboard from './Dashboard';
-import MockTest from './MockTest';
-import Leaderboard from './Leaderboard';
-import DoubtSolver from './DoubtSolver';
-import CurrentAffairs from './CurrentAffairs';
-import JobAlerts from './JobAlerts';
-import AdminPanel from './AdminPanel';
-import FormulaFlashcards from './FormulaFlashcards';
-
-// Components
-import ProtectedRoute from './ProtectedRoute';
 import PwaInstallPrompt from './PwaInstallPrompt';
+
+
+// Code-Split Lazy Loaded Views (Loaded only when visited)
+const Login = lazy(() => import('./Login'));
+const Register = lazy(() => import('./Register'));
+const Dashboard = lazy(() => import('./Dashboard'));
+const MockTest = lazy(() => import('./MockTest'));
+const Leaderboard = lazy(() => import('./Leaderboard'));
+const DoubtSolver = lazy(() => import('./DoubtSolver'));
+const CurrentAffairs = lazy(() => import('./CurrentAffairs'));
+const JobAlerts = lazy(() => import('./JobAlerts'));
+const AdminPanel = lazy(() => import('./AdminPanel'));
+const FormulaFlashcards = lazy(() => import('./FormulaFlashcards'));
+
+// Fallback Loading Component
+function PageLoader() {
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-3">
+      <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+      <span className="text-xs text-slate-400 font-medium tracking-wide">
+        Loading ShikshaIQ...
+      </span>
+    </div>
+  );
+}
 
 export default function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-slate-900 text-slate-100 font-sans">
-        {/* Mobile PWA Install Prompt */}
-        <PwaInstallPrompt />
+    <ThemeProvider>
+      <Router>
+        <div className="min-h-screen bg-slate-900 text-slate-100 dark:bg-slate-900 dark:text-slate-100 font-sans">
+          {/* Mobile PWA Install Prompt Banner */}
+          <PwaInstallPrompt />
 
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/auth" element={<Navigate to="/login" replace />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public Auth Routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/auth" element={<Navigate to="/login" replace />} />
 
-          {/* Exam Prep Routes */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/mock-test" element={<MockTest />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/doubts" element={<DoubtSolver />} />
-          <Route path="/current-affairs" element={<CurrentAffairs />} />
-          <Route path="/jobs" element={<JobAlerts />} />
-          <Route path="/admin" element={<AdminPanel />} />
-          <Route path="/flashcards" element={<FormulaFlashcards />} />
+              {/* Core Feature Routes */}
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/mock-test" element={<MockTest />} />
+              <Route path="/doubts" element={<DoubtSolver />} />
+              <Route path="/flashcards" element={<FormulaFlashcards />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/current-affairs" element={<CurrentAffairs />} />
+              <Route path="/jobs" element={<JobAlerts />} />
+              <Route path="/admin" element={<AdminPanel />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </Router>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
