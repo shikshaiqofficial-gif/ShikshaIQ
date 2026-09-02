@@ -491,6 +491,142 @@ app.get('/api/seed', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+// --- CURRENT AFFAIRS SCHEMA & ROUTES ---
+const currentAffairsSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  category: { type: String, required: true }, // National, Economy, Science & Tech, Sports, International
+  date: { type: String, required: true },
+  summary: { type: String, required: true },
+  bulletPoints: [{ type: String }],
+  quiz: [
+    {
+      questionText: { type: String, required: true },
+      options: [{ type: String, required: true }],
+      correctOptionIndex: { type: Number, required: true },
+      explanation: { type: String, required: true }
+    }
+  ],
+  createdAt: { type: Date, default: Date.now }
+});
+
+const CurrentAffair = mongoose.models.CurrentAffair || mongoose.model('CurrentAffair', currentAffairsSchema);
+
+// Get all capsules & quiz
+app.get('/api/current-affairs', async (req, res) => {
+  try {
+    const { category } = req.query;
+    const filter = category && category !== 'All' ? { category } : {};
+    let capsules = await CurrentAffair.find(filter).sort({ createdAt: -1 });
+
+    // Seed default capsules if database is empty
+    if (capsules.length === 0) {
+      const defaultCapsules = [
+        {
+          title: "India Expands Dedicated Freight Corridor Network",
+          category: "National",
+          date: "September 2026",
+          summary: "Indian Railways successfully commissions a high-speed freight link connecting western industrial ports to northern logistics hubs, reducing transit turnaround by 35%.",
+          bulletPoints: [
+            "Part of the National Rail Plan 2030 objective.",
+            "Increases average freight train speed from 25 km/h to over 65 km/h.",
+            "Drastically cuts logistic supply chain carbon footprints."
+          ],
+          quiz: [
+            {
+              questionText: "What is the primary objective of the Dedicated Freight Corridor (DFC) in India?",
+              options: ["High-speed passenger travel", "Segregating freight from passenger lines", "Replacing road transport entirely", "Metro rail expansion"],
+              correctOptionIndex: 1,
+              explanation: "DFCs segregate freight traffic from passenger lines to increase goods speed and lower logistical overheads."
+            }
+          ]
+        },
+        {
+          title: "RBI Advances UPI Multi-Currency Cross-Border Linkages",
+          category: "Economy",
+          date: "September 2026",
+          summary: "Reserve Bank of India expands bilateral real-time payment linkages across major Southeast Asian and Gulf central banks to ease remittance flows.",
+          bulletPoints: [
+            "Enables direct settlement without third-party intermediate currencies.",
+            "Drastically reduces cross-border retail transaction charges.",
+            "Built on interoperable ISO 20022 messaging protocols."
+          ],
+          quiz: [
+            {
+              questionText: "Which organization operates the Unified Payments Interface (UPI) infrastructure in India?",
+              options: ["Reserve Bank of India (RBI)", "NPCI", "SEBI", "NITI Aayog"],
+              correctOptionIndex: 1,
+              explanation: "NPCI (National Payments Corporation of India) develops and manages UPI."
+            }
+          ]
+        },
+        {
+          title: "ISRO Tests Next-Gen Cryogenic Engine for Heavy Lift Launchers",
+          category: "Science & Tech",
+          date: "September 2026",
+          summary: "ISRO successfully conducts endurance tests on an upgraded semi-cryogenic rocket stage for enhanced payload capabilities to Geosynchronous Transfer Orbit (GTO).",
+          bulletPoints: [
+            "Utilizes Isrosene (aviation-grade kerosene) and liquid oxygen.",
+            "Replaces current solid boosters to maximize launch capacity.",
+            "Critical propulsion stepping stone for lunar sample return operations."
+          ],
+          quiz: [
+            {
+              questionText: "What fuel combination powers semi-cryogenic rocket stages developed by ISRO?",
+              options: ["Liquid Hydrogen & Liquid Oxygen", "Refined Kerosene & Liquid Oxygen", "Hydrazine & Nitrogen Tetroxide", "Solid Composite Fuel"],
+              correctOptionIndex: 1,
+              explanation: "Semi-cryogenic stages use refined kerosene (Isrosene) as fuel and liquid oxygen (LOX) as oxidizer."
+            }
+          ]
+        },
+        {
+          title: "India Clinches Championship at Asian Badminton Team Finals",
+          category: "Sports",
+          date: "September 2026",
+          summary: "Indian shuttlers display commanding performances across singles and doubles rubbers to secure gold against regional heavyweights.",
+          bulletPoints: [
+            "Straight-set victories in both men's and mixed doubles categories.",
+            "Reinforces preparation momentum leading up to international championships.",
+            "Young talent pool steps into decisive high-pressure encounters."
+          ],
+          quiz: [
+            {
+              questionText: "Which prestigious international team badminton trophy is awarded for the Men's World Championship?",
+              options: ["Uber Cup", "Thomas Cup", "Sudirman Cup", "Sultan Azlan Shah Cup"],
+              correctOptionIndex: 1,
+              explanation: "Thomas Cup is the Men's World Team Badminton Championship, while Uber Cup is for women."
+            }
+          ]
+        },
+        {
+          title: "Global Clean Energy Ministerial Concludes with Green Hydrogen Accord",
+          category: "International",
+          date: "September 2026",
+          summary: "Over 35 nations sign harmonized standards for green hydrogen certification and carbon accounting to foster cross-border clean fuel trade.",
+          bulletPoints: [
+            "Aligns standards for electrolyzer efficiency and grid origin proof.",
+            "India positions itself as a major competitive export hub.",
+            "Includes dedicated financial underwriting for global South green infrastructure."
+          ],
+          quiz: [
+            {
+              questionText: "Under India's National Green Hydrogen Mission, what is green hydrogen produced from?",
+              options: ["Coal gasification", "Electrolysis of water using renewable power", "Natural gas reforming", "Nuclear thermal splitting"],
+              correctOptionIndex: 1,
+              explanation: "Green hydrogen is generated through water electrolysis powered entirely by renewable energy sources."
+            }
+          ]
+        }
+      ];
+
+      capsules = await CurrentAffair.insertMany(defaultCapsules);
+    }
+
+    res.json({ success: true, count: capsules.length, capsules });
+  } catch (err) {
+    console.error('Error fetching current affairs:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // ==========================================
 // 8. START EXPRESS SERVER
