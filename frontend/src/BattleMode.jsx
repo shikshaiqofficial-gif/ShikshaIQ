@@ -48,8 +48,15 @@ export default function BattleMode() {
 
     socketRef.current = io(SOCKET_SERVER_URL, { transports: ['websocket'] });
 
-    const storedUser = localStorage.getItem('user');
-    const userName = storedUser ? JSON.parse(storedUser).name : 'Aspirant';
+    let userName = 'Aspirant';
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        userName = JSON.parse(storedUser).name || 'Aspirant';
+      }
+    } catch {
+      userName = 'Aspirant';
+    }
 
     socketRef.current.emit('join_battle', { roomId: code, playerName: userName });
 
@@ -122,7 +129,6 @@ export default function BattleMode() {
     const nextAnswers = { ...answers, [qId]: idx };
     setAnswers(nextAnswers);
 
-    // Broadcast live question progress over WebSocket
     if (socketRef.current && code) {
       let currentScore = 0;
       challenge.questions.forEach((q) => {
@@ -216,7 +222,7 @@ export default function BattleMode() {
     );
   }
 
-  const currentQ = challenge?.questions[currentIndex];
+  const currentQ = challenge?.questions?.[currentIndex];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -355,7 +361,7 @@ export default function BattleMode() {
                 Previous
               </button>
 
-              {currentIndex === challenge?.questions?.length - 1 ? (
+              {currentIndex === (challenge?.questions?.length || 1) - 1 ? (
                 <button
                   onClick={handleSubmit}
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl cursor-pointer"
@@ -364,7 +370,7 @@ export default function BattleMode() {
                 </button>
               ) : (
                 <button
-                  onClick={() => setCurrentIndex((p) => Math.min(challenge?.questions?.length - 1, p + 1))}
+                  onClick={() => setCurrentIndex((p) => Math.min((challenge?.questions?.length || 1) - 1, p + 1))}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl cursor-pointer"
                 >
                   Next

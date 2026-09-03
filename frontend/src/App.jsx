@@ -4,7 +4,7 @@ import { ThemeProvider } from './ThemeContext';
 import { Loader2 } from 'lucide-react';
 import NetworkStatus from './NetworkStatus';
 import CustomQuiz from './CustomQuiz';
-
+import BattleMode from './BattleMode';
 // Static / Immediate Views
 import Home from './Home';
 import PwaInstallPrompt from './PwaInstallPrompt';
@@ -60,6 +60,8 @@ export default function App() {
               <Route path="/jobs" element={<JobAlerts />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/custom-quiz" element={<CustomQuiz />} />
+              <Route path="/battle" element={<BattleMode />} />
+<Route path="/battle/:code" element={<BattleMode />} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
