@@ -1,89 +1,56 @@
-import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from './ThemeContext';
-import { Loader2 } from 'lucide-react';
-import NetworkStatus from './NetworkStatus';
-import CustomQuiz from './CustomQuiz';
-import BattleMode from './BattleMode';
-// Static / Immediate Views
-import Home from './Home';
-import PwaInstallPrompt from './PwaInstallPrompt';
-import MistakeVault from './MistakeVault';
-import Home from './Home';
-import FlashcardDeck from './FlashcardDeck';
-import AdminPortal from './AdminPortal';
-import DoubtSolver from './DoubtSolver';
-import AnalyticsHub from './AnalyticsHub';
+import React, { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
+// --- SINGLE IMPORTS ONLY ---
+// Ensure you only have one instance of these lines:
 
-// Code-Split Lazy Loaded Views (Loaded only when visited)
-const Login = lazy(() => import('./Login'));
-const Register = lazy(() => import('./Register'));
-const Dashboard = lazy(() => import('./Dashboard'));
-const MockTest = lazy(() => import('./MockTest'));
-const Leaderboard = lazy(() => import('./Leaderboard'));
-const DoubtSolver = lazy(() => import('./DoubtSolver'));
-const CurrentAffairs = lazy(() => import('./CurrentAffairs'));
-const JobAlerts = lazy(() => import('./JobAlerts'));
-const AdminPanel = lazy(() => import('./AdminPanel'));
-const FormulaFlashcards = lazy(() => import('./FormulaFlashcards'));
+// Pages that load immediately
+import Home from "./Home";
+import Login from "./Login";
+import Register from "./Register";
 
+// Pages that are code-split (lazy loaded)
+const Dashboard = lazy(() => import("./Dashboard"));
+const MockTest = lazy(() => import("./MockTest"));
+const BattleMode = lazy(() => import("./BattleMode"));
+const MistakeVault = lazy(() => import("./MistakeVault"));
+const FlashcardDeck = lazy(() => import("./FlashcardDeck"));
+// Error showed duplicate declaration here, keep only the lazy one:
+const DoubtSolver = lazy(() => import("./DoubtSolver"));
+const AnalyticsHub = lazy(() => import("./AnalyticsHub"));
+const AdminPanel = lazy(() => import("./AdminPanel"));
 
-
-// Fallback Loading Component
-function PageLoader() {
-  return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-3">
-      <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-      <span className="text-xs text-slate-400 font-medium tracking-wide">
-        Loading ShikshaIQ...
-      </span>
-    </div>
-  );
-}
+// Simple Loading Component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen bg-[#070b19] text-indigo-400 font-bold text-xl">
+    Loading ShikshaIQ...
+  </div>
+);
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <div className="min-h-screen bg-slate-900 text-slate-100 dark:bg-slate-900 dark:text-slate-100 font-sans">
-          {/* Mobile PWA Install Prompt Banner */}
-          <PwaInstallPrompt />
+    <BrowserRouter>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public Auth Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/auth" element={<Navigate to="/login" replace />} />
+          {/* Protected Student Routes */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/mock-test" element={<MockTest />} />
+          <Route path="/battle" element={<BattleMode />} />
+          <Route path="/battle/:code" element={<BattleMode />} />
+          <Route path="/mistakes" element={<MistakeVault />} />
+          <Route path="/flashcards" element={<FlashcardDeck />} />
+          <Route path="/doubts" element={<DoubtSolver />} />
+          <Route path="/analytics" element={<AnalyticsHub />} />
 
-              {/* Core Feature Routes */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/mock-test" element={<MockTest />} />
-              <Route path="/doubts" element={<DoubtSolver />} />
-              <Route path="/flashcards" element={<FormulaFlashcards />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/current-affairs" element={<CurrentAffairs />} />
-              <Route path="/jobs" element={<JobAlerts />} />
-              <Route path="/admin" element={<AdminPanel />} />
-              <Route path="/custom-quiz" element={<CustomQuiz />} />
-              <Route path="/battle" element={<BattleMode />} />
-              <Route path="/mistakes" element={<MistakeVault />} />
-              <Route path="/battle/:code" element={<BattleMode />} />
-              <Route path="/" element={<Home />} />
-              <Route path="/flashcards" element={<FlashcardDeck />} />
-              <Route path="/admin" element={<AdminPortal />} />
-              <Route path="/doubts" element={<DoubtSolver />} />
-              <Route path="/analytics" element={<AnalyticsHub />} />
-
-
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </div>
-      </Router>
-    </ThemeProvider>
+          {/* Admin Route */}
+          <Route path="/admin" element={<AdminPanel />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
   );
 }
