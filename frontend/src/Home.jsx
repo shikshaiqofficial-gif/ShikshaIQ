@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import Logo from './components/Logo';
 import {
   Zap,
   Swords,
@@ -8,35 +9,30 @@ import {
   Sliders,
   HelpCircle,
   TrendingUp,
-  ShieldCheck,
   ArrowRight,
-  CheckCircle2,
   Sparkles,
-  Play
+  BarChart3,
+  Database,
+  AlertTriangle,
+  Briefcase,
+  Video,
+  FileText,
+  Clock,
+  Share2,
+  Tag,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[#070b19] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden font-sans">
       {/* ---------------------------------------------------- */}
-      {/* NAVIGATION BAR */}
+      {/* NAVIGATION HEADER */}
       {/* ---------------------------------------------------- */}
-      <header className="h-20 bg-slate-950/80 border-b border-slate-900 px-4 sm:px-12 flex items-center justify-between sticky top-0 z-50 backdrop-blur-xl">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-          {/* Animated Logo Icon */}
-          <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-rose-500 flex items-center justify-center font-black text-white text-xl shadow-xl shadow-indigo-600/30 animate-pulse">
-            <span className="relative z-10">S</span>
-            <div className="absolute inset-0 rounded-2xl bg-indigo-500 blur-md opacity-40 animate-ping"></div>
-          </div>
-          <div>
-            <span className="font-extrabold text-lg tracking-tight text-white flex items-center gap-1.5">
-              ShikshaIQ <span className="text-[10px] bg-gradient-to-r from-indigo-500 to-rose-500 text-white font-mono px-2 py-0.5 rounded-full shadow-sm">AI 2026</span>
-            </span>
-            <span className="text-[10px] text-slate-400 block tracking-wide">Next-Gen Exam Prep</span>
-          </div>
-        </div>
+      <header className="h-20 bg-[#070b19]/90 border-b border-slate-800/80 px-4 sm:px-12 flex items-center justify-between sticky top-0 z-50 backdrop-blur-xl">
+        <Logo size="md" />
 
         <div className="flex items-center gap-3 sm:gap-4">
           <button
@@ -47,7 +43,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => navigate('/register')}
-            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-lg shadow-indigo-600/30 cursor-pointer flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-lg shadow-orange-600/30 cursor-pointer flex items-center gap-1.5"
           >
             <span>Get Started Free</span>
             <ArrowRight className="w-4 h-4" />
@@ -56,150 +52,235 @@ export default function Home() {
       </header>
 
       {/* ---------------------------------------------------- */}
-      {/* HERO SECTION */}
+      {/* HERO BANNER SECTION */}
       {/* ---------------------------------------------------- */}
-      <section className="relative pt-16 pb-24 px-4 sm:px-8 max-w-7xl mx-auto flex flex-col items-center text-center space-y-8">
-        {/* Glowing background gradient elements */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-rose-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      <section className="relative pt-12 pb-16 px-4 sm:px-8 max-w-7xl mx-auto">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold shadow-inner">
-          <Sparkles className="w-4 h-4 text-indigo-400 animate-spin" />
-          <span>Powered by Gemini 3.6 Flash AI & Real-Time WebSockets</span>
-        </div>
+        <div className="bg-gradient-to-r from-indigo-950/60 via-slate-900 to-[#0b132b] border border-indigo-500/20 rounded-3xl p-6 sm:p-12 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-4 max-w-xl text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-bold tracking-wide">
+              <Sparkles className="w-4 h-4" />
+              <span>ONE PLATFORM. EVERY SOLUTION.</span>
+            </div>
+            
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+              Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-orange-400">ShikshaIQ</span>
+            </h1>
 
-        {/* Headline */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white max-w-4xl leading-[1.1]">
-          Master Indian Competitive Exams with <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-rose-400 bg-clip-text text-transparent">AI Intelligence</span>
-        </h1>
+            <p className="text-xs sm:text-sm uppercase tracking-widest text-orange-400 font-bold">
+              — Learn Smart. Rank Higher. —
+            </p>
 
-        {/* Subtitle */}
-        <p className="text-sm sm:text-lg text-slate-400 max-w-2xl leading-relaxed">
-          Experience 100-question CBT mock simulations, live 1v1 peer battle arenas with real-time progress syncing, and adaptive weakness drill engines built for SSC CGL & RRB success.
-        </p>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Your All-in-One Learning Platform for Competitive Exams across India. Mock tests, live peer battles, and AI tools built for top ranks.
+            </p>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-          <button
-            onClick={() => navigate('/mock-test')}
-            className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition flex items-center gap-2.5 shadow-xl shadow-indigo-600/40 cursor-pointer text-sm sm:text-base group"
-          >
-            <Zap className="w-5 h-5 group-hover:scale-110 transition" />
-            <span>Launch Daily 100-Q CBT Mock</span>
-          </button>
-          <button
-            onClick={() => navigate('/battle')}
-            className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 font-bold rounded-2xl transition flex items-center gap-2.5 cursor-pointer text-sm sm:text-base shadow-lg"
-          >
-            <Swords className="w-5 h-5 text-rose-400" />
-            <span>Enter Live 1v1 Battle</span>
-          </button>
-        </div>
-
-        {/* Hero Mockup Preview Card */}
-        <div className="w-full max-w-5xl mt-12 bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-md relative">
-          <div className="absolute -top-3 left-8 bg-indigo-600 text-white text-[10px] font-mono px-3 py-1 rounded-full uppercase tracking-wider font-bold">
-            Live CBT Interface Preview
+            <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-3">
+              <button
+                onClick={() => navigate('/mock-test')}
+                className="px-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-2xl transition flex items-center gap-2 shadow-lg shadow-orange-600/30 cursor-pointer text-xs sm:text-sm"
+              >
+                <Zap className="w-4 h-4" /> Launch Daily 100-Q Mock
+              </button>
+              <button
+                onClick={() => navigate('/battle')}
+                className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold rounded-2xl transition flex items-center gap-2 cursor-pointer text-xs sm:text-sm"
+              >
+                <Swords className="w-4 h-4 text-rose-400" /> Enter Live 1v1 Battle
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-left space-y-2">
-              <span className="text-[10px] text-indigo-400 font-bold uppercase">Quantitative Aptitude</span>
-              <p className="text-xs font-semibold text-slate-200">Algebraic Identities & Geometry Theorem Traps</p>
-              <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 w-3/4"></div>
-              </div>
+
+          {/* Trusted Badge Box */}
+          <div className="bg-slate-950/80 border border-slate-800 p-6 rounded-3xl text-center space-y-3 shadow-xl shrink-0 w-full md:w-72">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+              <Award className="w-6 h-6" />
             </div>
-            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-left space-y-2">
-              <span className="text-[10px] text-rose-400 font-bold uppercase">Live 1v1 Duel Arena</span>
-              <p className="text-xs font-semibold text-slate-200">Real-Time Opponent Progress Bar Sync</p>
-              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Synced @ 60fps
-              </div>
-            </div>
-            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-left space-y-2">
-              <span className="text-[10px] text-amber-400 font-bold uppercase">Mistake Vault</span>
-              <p className="text-xs font-semibold text-slate-200">Spaced Repetition & Shortcut Derivations</p>
-              <div className="text-[10px] text-slate-400 font-mono">Active Review Cadence</div>
+            <div className="space-y-1">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Trusted By</span>
+              <span className="text-2xl font-black text-amber-400 font-mono">500K+</span>
+              <span className="text-xs font-semibold text-slate-200 block">Students Across India</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* FEATURE HIGHLIGHTS GRID */}
+      {/* "EVERYTHING YOU NEED TO SUCCEED" FEATURE GRID */}
       {/* ---------------------------------------------------- */}
-      py-20 px-4 sm:px-8 max-w-7xl mx-auto space-y-16">
-        <div className="text-center space-y-3">
-          <h2 className="text-2xl sm:text-4xl font-black text-white">Engineered for Top All-India Ranks</h2>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
-            Everything you need to crack SSC CGL, RRB NTPC, and Banking exams in one high-performance web app.
-          </p>
+      <section className="py-12 px-4 sm:px-8 max-w-7xl mx-auto space-y-8">
+        <div className="text-center space-y-2">
+          <div className="inline-block px-4 py-1 rounded-full bg-slate-900 border border-slate-800 text-indigo-400 text-xs font-bold uppercase tracking-widest">
+            — EVERYTHING YOU NEED TO SUCCEED —
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black text-white">Explore Our Core Prep Modules</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1 */}
-          <div
-            onClick={() => navigate('/mock-test')}
-            className="p-8 bg-slate-900/60 border border-slate-800/80 hover:border-indigo-500/50 rounded-3xl space-y-4 transition duration-300 group cursor-pointer shadow-xl hover:shadow-indigo-500/10"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition">
-              <BookOpen className="w-6 h-6" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {/* Card 1: Online Courses */}
+          <div onClick={() => navigate('/dashboard')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition">
+              <BookOpen className="w-5 h-5" />
             </div>
-            <h3 className="text-lg font-bold text-white">Daily 100-Q CBT Simulation</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Full-length 60-minute tests generated daily with authentic exam difficulty ratios, negative marking, and PDF scorecards.
-            </p>
-            <span className="text-xs font-bold text-indigo-400 flex items-center gap-1 group-hover:translate-x-1 transition">
-              Start Test <ArrowRight className="w-3.5 h-3.5" />
-            </span>
+            <div>
+              <h4 className="font-bold text-xs text-white">ONLINE COURSES</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Expert-led courses for every exam</p>
+            </div>
           </div>
 
-          {/* Card 2 */}
-          <div
-            onClick={() => navigate('/battle')}
-            className="p-8 bg-slate-900/60 border border-slate-800/80 hover:border-rose-500/50 rounded-3xl space-y-4 transition duration-300 group cursor-pointer shadow-xl hover:shadow-rose-500/10"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition">
-              <Swords className="w-6 h-6" />
+          {/* Card 2: Test Series */}
+          <div onClick={() => navigate('/mock-test')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Zap className="w-5 h-5" />
             </div>
-            <h3 className="text-lg font-bold text-white">Live 1v1 Peer Battle Arena</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Challenge friends or random aspirants via WebSocket rooms. Watch live opponent progress bars advance question by question.
-            </p>
-            <span className="text-xs font-bold text-rose-400 flex items-center gap-1 group-hover:translate-x-1 transition">
-              Start Duel <ArrowRight className="w-3.5 h-3.5" />
-            </span>
+            <div>
+              <h4 className="font-bold text-xs text-white">TEST SERIES</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Unlimited tests with detailed analysis</p>
+            </div>
           </div>
 
-          {/* Card 3 */}
-          <div
-            onClick={() => navigate('/mistakes')}
-            className="p-8 bg-slate-900/60 border border-slate-800/80 hover:border-amber-500/50 rounded-3xl space-y-4 transition duration-300 group cursor-pointer shadow-xl hover:shadow-amber-500/10"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition">
-              <TrendingUp className="w-6 h-6" />
+          {/* Card 3: AI Doubt Solver */}
+          <div onClick={() => navigate('/doubts')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-emerald-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Sparkles className="w-5 h-5" />
             </div>
-            <h3 className="text-lg font-bold text-white">Mistake Vault & Formula Bank</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Automatically captures failed test questions into a spaced-repetition vault with step-by-step shortcut derivations.
-            </p>
-            <span className="text-xs font-bold text-amber-400 flex items-center gap-1 group-hover:translate-x-1 transition">
-              View Vault <ArrowRight className="w-3.5 h-3.5" />
-            </span>
+            <div>
+              <h4 className="font-bold text-xs text-white">AI DOUBT SOLVER</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Instant solutions anytime, anywhere</p>
+            </div>
+          </div>
+
+          {/* Card 4: Job Alerts */}
+          <div onClick={() => navigate('/dashboard')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-rose-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Briefcase className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">JOB ALERTS</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Latest government & private job updates</p>
+            </div>
+          </div>
+
+          {/* Card 5: Live Classes */}
+          <div onClick={() => navigate('/dashboard')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Video className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">LIVE CLASSES</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Learn live from top educators</p>
+            </div>
+          </div>
+
+          {/* Card 6: Notes & PDFs */}
+          <div onClick={() => navigate('/dashboard')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-violet-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-violet-600/20 text-violet-400 flex items-center justify-center group-hover:scale-110 transition">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">NOTES & PDFS</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Download free notes & study material</p>
+            </div>
+          </div>
+
+          {/* Card 7: Daily Current Affairs */}
+          <div onClick={() => navigate('/dashboard')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-orange-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-orange-600/20 text-orange-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">DAILY CURRENT AFFAIRS</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Stay updated everyday</p>
+            </div>
+          </div>
+
+          {/* Card 8: Previous Year Papers */}
+          <div onClick={() => navigate('/dashboard')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-pink-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-pink-600/20 text-pink-400 flex items-center justify-center group-hover:scale-110 transition">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">PREVIOUS YEAR PAPERS</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Practice with previous year papers</p>
+            </div>
+          </div>
+
+          {/* Card 9: Performance Tracker */}
+          <div onClick={() => navigate('/analytics')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">PERFORMANCE TRACKER</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Track your progress and improve</p>
+            </div>
+          </div>
+
+          {/* Card 10: Refer & Earn */}
+          <div onClick={() => navigate('/dashboard')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-green-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-green-600/20 text-green-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Share2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">REFER & EARN</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Refer friends & earn exciting rewards</p>
+            </div>
+          </div>
+
+          {/* Card 11: Coupons & Offers */}
+          <div onClick={() => navigate('/dashboard')} className="p-4 bg-slate-900/80 border border-slate-800 hover:border-purple-500/50 rounded-2xl space-y-3 transition cursor-pointer group shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Tag className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">COUPONS & OFFERS</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Save more with amazing offers</p>
+            </div>
+          </div>
+
+          {/* Card 12: 100% Trusted Platform */}
+          <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3 shadow-lg text-center">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-white">100% TRUSTED PLATFORM</h4>
+              <p className="text-[10px] text-slate-400 mt-1">Safe, secure & trusted by 500K+ students</p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* FOOTER */}
+      {/* FOOTER CALL-TO-ACTION */}
       {/* ---------------------------------------------------- */}
-      <footer className="mt-auto bg-slate-950 border-t border-slate-900 py-12 px-4 sm:px-8 text-center text-xs text-slate-500 space-y-3">
-        <div className="flex items-center justify-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>ShikshaIQ AI Engine Operational • Render & Vercel Cloud Native</span>
+      <section className="py-12 px-4 sm:px-8 max-w-7xl mx-auto w-full">
+        <div className="bg-gradient-to-r from-orange-600 to-rose-600 rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+          <div className="space-y-2 text-center md:text-left">
+            <h3 className="text-xl sm:text-2xl font-black text-white">Start Your Success Journey Today!</h3>
+            <p className="text-xs sm:text-sm text-orange-100">Download our mobile app or visit our official web portal.</p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="px-4 py-2.5 bg-slate-950 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg">
+              <span>Google Play (Coming Soon)</span>
+            </div>
+            <a href="https://www.shikshaiq.com" target="_blank" rel="noopener noreferrer" className="px-6 py-2.5 bg-white text-orange-600 font-extrabold rounded-xl text-xs transition shadow-lg hover:bg-slate-100">
+              www.shikshaiq.com
+            </a>
+          </div>
         </div>
-        <p>© 2026 ShikshaIQ Official. Built for Indian Competitive Exam Aspirants.</p>
+      </section>
+
+      {/* Footer Branding Bar */}
+      <footer className="mt-auto bg-[#04060d] border-t border-slate-900 py-6 px-4 sm:px-12 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+        <div className="flex items-center gap-6">
+          <span>📚 Learn Smart</span>
+          <span>⚡ Stay Consistent</span>
+          <span>🏆 Crack Every Exam</span>
+        </div>
+        <p>© 2026 ShikshaIQ. Rank Higher!</p>
       </footer>
     </div>
   );
