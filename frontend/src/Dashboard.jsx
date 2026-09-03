@@ -219,6 +219,22 @@ export default function Dashboard() {
               </p>
             </div>
           </button>
+<button
+  onClick={() => navigate('/analytics')}
+  className="p-4 bg-slate-900/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl text-left space-y-2.5 transition duration-200 group shadow-lg cursor-pointer"
+>
+  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition">
+    <BarChart3 className="w-4 h-4" />
+  </div>
+  <div>
+    <h3 className="font-bold text-xs text-white group-hover:text-indigo-300 transition">
+      Analytics Hub
+    </h3>
+    <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+      Historical scorecards & accuracy metrics.
+    </p>
+  </div>
+</button>
 
           <button
             onClick={() => navigate('/doubts')}

@@ -13,6 +13,7 @@ import Home from './Home';
 import FlashcardDeck from './FlashcardDeck';
 import AdminPortal from './AdminPortal';
 import DoubtSolver from './DoubtSolver';
+import AnalyticsHub from './AnalyticsHub';
 
 
 // Code-Split Lazy Loaded Views (Loaded only when visited)
@@ -74,6 +75,7 @@ export default function App() {
               <Route path="/flashcards" element={<FlashcardDeck />} />
               <Route path="/admin" element={<AdminPortal />} />
               <Route path="/doubts" element={<DoubtSolver />} />
+              <Route path="/analytics" element={<AnalyticsHub />} />
 
 
               {/* Fallback */}
