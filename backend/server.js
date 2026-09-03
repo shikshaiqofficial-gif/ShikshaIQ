@@ -99,10 +99,52 @@ const testSubmissionSchema = new mongoose.Schema({
   score: { type: Number, required: true },
   totalMarks: { type: Number, required: true },
   accuracy: { type: Number, required: true },
-  timeTakenSeconds: { type: Number, default: 0 }
+  timeTakenSeconds: { type: Number, default: 0 },
+  questionAnalytics: [{
+    questionId: String,
+    subject: String,
+    timeSpentSeconds: Number,
+    isCorrect: Boolean,
+    status: { type: String, enum: ['correct', 'incorrect', 'unattempted'] }
+  }]
 }, { timestamps: true });
 
 const TestSubmission = mongoose.models.TestSubmission || mongoose.model('TestSubmission', testSubmissionSchema);
+
+const challengeSchema = new mongoose.Schema({
+  challengeCode: { type: String, required: true, unique: true, index: true },
+  subject: { type: String, default: 'Mixed General Aptitude' },
+  questions: [{
+    _id: String,
+    subject: String,
+    questionText: String,
+    options: [String],
+    correctOptionIndex: Number,
+    marks: { type: Number, default: 2 },
+    negativeMarks: { type: Number, default: 0.5 },
+    explanation: String
+  }],
+  creator: {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    name: { type: String, required: true },
+    score: { type: Number, default: null },
+    accuracy: { type: Number, default: null },
+    timeTakenSeconds: { type: Number, default: null },
+    submittedAt: { type: Date, default: null }
+  },
+  opponent: {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name: { type: String, default: null },
+    score: { type: Number, default: null },
+    accuracy: { type: Number, default: null },
+    timeTakenSeconds: { type: Number, default: null },
+    submittedAt: { type: Date, default: null }
+  },
+  winner: { type: String, default: null }, // 'creator' | 'opponent' | 'tie' | null
+  status: { type: String, enum: ['waiting', 'active', 'completed'], default: 'waiting' }
+}, { timestamps: true });
+
+const Challenge = mongoose.models.Challenge || mongoose.model('Challenge', challengeSchema);
 
 const currentAffairSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -311,7 +353,7 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
   return saved;
 }
 
-// Scheduled Midnight Job (00:01 AM)
+// Midnight Cron Job (00:01 AM IST)
 cron.schedule('1 0 * * *', async () => {
   if (ai) {
     console.log('[Cron] Initiating midnight 100-question mock generation...');
@@ -327,7 +369,7 @@ cron.schedule('1 0 * * *', async () => {
 // API ROUTES
 // ----------------------------------------------------
 
-// Root Route
+// Health and Root
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
@@ -338,7 +380,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
@@ -383,7 +424,7 @@ app.get('/api/tests/daily-100-mock', async (req, res) => {
   }
 });
 
-// Auth Routes
+// Authentication Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, targetExam } = req.body;
@@ -513,7 +554,7 @@ app.get('/api/questions', async (req, res) => {
     if (subject && subject !== 'All') filter.subject = subject;
     if (difficulty && difficulty !== 'Mixed') filter.difficulty = difficulty;
 
-    const questions = await Question.find(filter).limit(parseInt(limit));
+    const questions = await Question.find(filter).limit(parseInt(limit, 10));
     res.json({ success: true, count: questions.length, questions });
   } catch (error) {
     console.error('Questions fetch error:', error);
@@ -602,6 +643,41 @@ app.post('/api/questions/bulk', async (req, res) => {
   }
 });
 
+// Custom Quiz Generator Endpoint
+app.get('/api/questions/custom-quiz', async (req, res) => {
+  try {
+    const { subject, topic, count = 10, difficulty } = req.query;
+    const sampleSize = Math.min(parseInt(count, 10) || 10, 50);
+
+    const matchStage = {};
+    if (subject && subject !== 'All') matchStage.subject = subject;
+    if (topic && topic !== 'All') matchStage.topic = topic;
+    if (difficulty && difficulty !== 'Mixed') matchStage.difficulty = difficulty;
+
+    let questions = await Question.aggregate([
+      { $match: matchStage },
+      { $sample: { size: sampleSize } }
+    ]);
+
+    if (questions.length < sampleSize && subject && subject !== 'All') {
+      const fallbackQuestions = await Question.aggregate([
+        { $match: { subject } },
+        { $sample: { size: sampleSize } }
+      ]);
+      questions = fallbackQuestions;
+    }
+
+    res.json({
+      success: true,
+      count: questions.length,
+      questions
+    });
+  } catch (error) {
+    console.error('Custom quiz fetch error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate custom quiz.' });
+  }
+});
+
 app.delete('/api/questions/:id', async (req, res) => {
   try {
     await Question.findByIdAndDelete(req.params.id);
@@ -611,7 +687,132 @@ app.delete('/api/questions/:id', async (req, res) => {
   }
 });
 
-// Test Submission & Evaluation Route
+// ----------------------------------------------------
+// 1V1 PEER BATTLE ENDPOINTS
+// ----------------------------------------------------
+
+// 1. Create a 1v1 Challenge
+app.post('/api/challenges/create', verifyToken, async (req, res) => {
+  try {
+    const { subject = 'All' } = req.body;
+    const matchStage = subject && subject !== 'All' ? { subject } : {};
+
+    let sampledQuestions = await Question.aggregate([
+      { $match: matchStage },
+      { $sample: { size: 10 } }
+    ]);
+
+    if (sampledQuestions.length < 10) {
+      sampledQuestions = await Question.aggregate([{ $sample: { size: 10 } }]);
+    }
+
+    const challengeCode = 'BATTLE-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const newChallenge = await Challenge.create({
+      challengeCode,
+      subject,
+      questions: sampledQuestions,
+      creator: {
+        userId: req.user.id,
+        name: req.user.name || 'Challenger'
+      },
+      status: 'waiting'
+    });
+
+    res.status(201).json({ success: true, challenge: newChallenge });
+  } catch (err) {
+    console.error('Challenge creation error:', err);
+    res.status(500).json({ success: false, message: 'Failed to create battle.' });
+  }
+});
+
+// 2. Fetch Challenge by Code
+app.get('/api/challenges/:code', async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ challengeCode: req.params.code });
+    if (!challenge) {
+      return res.status(404).json({ success: false, message: 'Challenge battle not found.' });
+    }
+    res.json({ success: true, challenge });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to retrieve challenge details.' });
+  }
+});
+
+// 3. Submit Challenge Attempt
+app.post('/api/challenges/:code/submit', verifyToken, async (req, res) => {
+  try {
+    const { answers, timeTakenSeconds } = req.body;
+    const challenge = await Challenge.findOne({ challengeCode: req.params.code });
+
+    if (!challenge) {
+      return res.status(404).json({ success: false, message: 'Battle not found.' });
+    }
+
+    let correct = 0;
+    let incorrect = 0;
+    let score = 0;
+
+    challenge.questions.forEach((q) => {
+      const selected = answers[q._id];
+      if (selected !== undefined && selected !== null) {
+        if (selected === q.correctOptionIndex) {
+          correct++;
+          score += 2;
+        } else {
+          incorrect++;
+          score -= 0.5;
+        }
+      }
+    });
+
+    const attempted = correct + incorrect;
+    const finalScore = Math.max(0, parseFloat(score.toFixed(2)));
+    const accuracy = attempted > 0 ? parseFloat(((correct / attempted) * 100).toFixed(1)) : 0;
+    const isCreator = challenge.creator.userId?.toString() === req.user.id;
+
+    if (isCreator) {
+      challenge.creator.score = finalScore;
+      challenge.creator.accuracy = accuracy;
+      challenge.creator.timeTakenSeconds = timeTakenSeconds;
+      challenge.creator.submittedAt = new Date();
+    } else {
+      challenge.opponent.userId = req.user.id;
+      challenge.opponent.name = req.user.name || 'Challenger Peer';
+      challenge.opponent.score = finalScore;
+      challenge.opponent.accuracy = accuracy;
+      challenge.opponent.timeTakenSeconds = timeTakenSeconds;
+      challenge.opponent.submittedAt = new Date();
+    }
+
+    if (challenge.creator.submittedAt && challenge.opponent.submittedAt) {
+      challenge.status = 'completed';
+      if (challenge.creator.score > challenge.opponent.score) {
+        challenge.winner = 'creator';
+      } else if (challenge.opponent.score > challenge.creator.score) {
+        challenge.winner = 'opponent';
+      } else {
+        if (challenge.creator.timeTakenSeconds < challenge.opponent.timeTakenSeconds) {
+          challenge.winner = 'creator';
+        } else if (challenge.opponent.timeTakenSeconds < challenge.creator.timeTakenSeconds) {
+          challenge.winner = 'opponent';
+        } else {
+          challenge.winner = 'tie';
+        }
+      }
+    } else {
+      challenge.status = 'active';
+    }
+
+    await challenge.save();
+    res.json({ success: true, challenge });
+  } catch (err) {
+    console.error('Challenge submission error:', err);
+    res.status(500).json({ success: false, message: 'Failed to record battle attempt.' });
+  }
+});
+
+// Test Submission & Speed-Accuracy Scoring Route
 app.post('/api/tests/submit', verifyToken, async (req, res) => {
   try {
     const { exam, answers, timeTakenSeconds } = req.body;
@@ -643,13 +844,17 @@ app.post('/api/tests/submit', verifyToken, async (req, res) => {
     let incorrect = 0;
     let score = 0;
     let totalMarks = 0;
+    const questionAnalytics = [];
 
     answers.forEach(ans => {
       const q = questionMap.get(ans.questionId);
       if (q) {
         totalMarks += (q.marks || 2);
-        if (ans.selectedOptionIndex !== null && ans.selectedOptionIndex !== undefined) {
-          if (ans.selectedOptionIndex === q.correctOptionIndex) {
+        const isAttempted = ans.selectedOptionIndex !== null && ans.selectedOptionIndex !== undefined;
+        const isCorrect = isAttempted && ans.selectedOptionIndex === q.correctOptionIndex;
+
+        if (isAttempted) {
+          if (isCorrect) {
             correct++;
             score += (q.marks || 2);
           } else {
@@ -657,6 +862,14 @@ app.post('/api/tests/submit', verifyToken, async (req, res) => {
             score -= (q.negativeMarks || 0.5);
           }
         }
+
+        questionAnalytics.push({
+          questionId: ans.questionId,
+          subject: q.subject || 'General Aptitude',
+          timeSpentSeconds: ans.timeSpentSeconds || 0,
+          isCorrect: Boolean(isCorrect),
+          status: !isAttempted ? 'unattempted' : isCorrect ? 'correct' : 'incorrect'
+        });
       }
     });
 
@@ -675,7 +888,8 @@ app.post('/api/tests/submit', verifyToken, async (req, res) => {
       score: finalScore,
       totalMarks: totalMarks || answers.length * 2,
       accuracy,
-      timeTakenSeconds: timeTakenSeconds || 0
+      timeTakenSeconds: timeTakenSeconds || 0,
+      questionAnalytics
     });
 
     res.status(201).json({ success: true, result: submission });
@@ -709,7 +923,7 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
-// Multimodal Doubt Solver
+// Multimodal Doubt Solver (gemini-3.6-flash)
 app.post('/api/doubts/solve', async (req, res) => {
   try {
     const { question, subject, imageBase64 } = req.body;
@@ -763,6 +977,66 @@ ${question || 'Solve the question shown in the attached image.'}`;
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to resolve doubt.'
+    });
+  }
+});
+
+// AI Adaptive Weakness Drill Generator (Trap Breaker)
+app.post('/api/study-plan/weakness-drill', verifyToken, async (req, res) => {
+  try {
+    const { mistakes, targetExam = 'SSC CGL' } = req.body;
+
+    if (!Array.isArray(mistakes) || mistakes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one mistake question record is required to generate a drill.'
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY || !ai) {
+      return res.status(500).json({
+        success: false,
+        message: 'GEMINI_API_KEY is not configured on the server.'
+      });
+    }
+
+    const mistakesSummary = mistakes.slice(0, 5).map((m, idx) =>
+      `${idx + 1}. [${m.subject} - ${m.topic || 'General'}]: ${m.questionText}`
+    ).join('\n');
+
+    const prompt = `You are ShikshaIQ's Lead Remedial Faculty for ${targetExam}.
+The candidate just took a test and failed the following concepts/questions:
+${mistakesSummary}
+
+Synthesize an adaptive 5-question "Trap Breaker" drill that tests the EXACT same theorems, grammatical rules, or reasoning patterns, but with DIFFERENT numbers, phrasing, or values to test if they truly learned the lesson.
+
+Return ONLY a valid JSON array matching this exact schema:
+[
+  {
+    "subject": "Quantitative Aptitude",
+    "topic": "Target Topic",
+    "questionText": "New fresh question here",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctOptionIndex": 0,
+    "explanation": "Clear step-by-step formula shortcut"
+  }
+]
+
+Return strictly raw JSON. Do NOT include backticks or markdown fences.`;
+
+    const rawOutput = await invokeGeminiWithFallback(prompt);
+    let cleanText = rawOutput.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+    const drillQuestions = JSON.parse(cleanText);
+
+    res.json({
+      success: true,
+      drillQuestions: Array.isArray(drillQuestions) ? drillQuestions : []
+    });
+  } catch (error) {
+    console.error('Weakness drill error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to synthesize adaptive drill.'
     });
   }
 });

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider } from './ThemeContext';
 import { Loader2 } from 'lucide-react';
 import NetworkStatus from './NetworkStatus';
+import CustomQuiz from './CustomQuiz';
 
 // Static / Immediate Views
 import Home from './Home';
@@ -58,6 +59,7 @@ export default function App() {
               <Route path="/current-affairs" element={<CurrentAffairs />} />
               <Route path="/jobs" element={<JobAlerts />} />
               <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/custom-quiz" element={<CustomQuiz />} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
