@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from './api';
+import CutoffPredictor from './CutoffPredictor';
 import {
   BookOpen,
   HelpCircle,
@@ -152,10 +153,10 @@ export default function Dashboard() {
             </div>
             <div>
               <h3 className="font-bold text-sm text-white group-hover:text-rose-300 transition">
-                1v1 Peer Battle Arena
+                1v1 Peer Battle
               </h3>
               <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Create a shareable link and challenge a friend to a 5-minute rapid-fire test.
+                Create a shareable link and challenge a peer to a 5-minute rapid-fire test.
               </p>
             </div>
           </button>
@@ -265,45 +266,51 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Right Column: Daily Current Affairs & Exam Alerts */}
-          <div className="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-indigo-400" />
-                <h2 className="text-sm font-bold text-white">Daily Exam Capsules</h2>
-              </div>
-              <span className="text-[11px] text-slate-400">Static GK & PIB</span>
-            </div>
+          {/* Right Column: Cut-off Predictor & Exam Capsules */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Embedded Tier-1 Cut-Off Predictor Widget */}
+            <CutoffPredictor defaultScore={130} exam={user?.targetExam || 'SSC CGL'} />
 
-            <div className="space-y-3">
-              {currentAffairs.length > 0 ? (
-                currentAffairs.map((ca, idx) => (
-                  <div
-                    key={ca._id || idx}
-                    className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
-                        {ca.category || 'National'}
-                      </span>
-                      <span className="text-[10px] text-slate-500">{ca.date}</span>
-                    </div>
-                    <h4 className="font-semibold text-slate-200 leading-snug">{ca.title}</h4>
-                    <p className="text-[11px] text-slate-400 line-clamp-2">{ca.summary}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-indigo-400 uppercase">National Economy</span>
-                    <span className="text-[10px] text-slate-500">Updated Today</span>
-                  </div>
-                  <h4 className="font-semibold text-slate-200">RBI Monetary Policy Review & Repo Rate Revisions</h4>
-                  <p className="text-[11px] text-slate-400">
-                    High relevance for upcoming SSC CGL General Awareness and Banking General Economy sections.
-                  </p>
+            {/* Daily Exam Capsules */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-400" />
+                  <h2 className="text-sm font-bold text-white">Daily Exam Capsules</h2>
                 </div>
-              )}
+                <span className="text-[11px] text-slate-400">Static GK & PIB</span>
+              </div>
+
+              <div className="space-y-3">
+                {currentAffairs.length > 0 ? (
+                  currentAffairs.map((ca, idx) => (
+                    <div
+                      key={ca._id || idx}
+                      className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                          {ca.category || 'National'}
+                        </span>
+                        <span className="text-[10px] text-slate-500">{ca.date}</span>
+                      </div>
+                      <h4 className="font-semibold text-slate-200 leading-snug">{ca.title}</h4>
+                      <p className="text-[11px] text-slate-400 line-clamp-2">{ca.summary}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-indigo-400 uppercase">National Economy</span>
+                      <span className="text-[10px] text-slate-500">Updated Today</span>
+                    </div>
+                    <h4 className="font-semibold text-slate-200">RBI Monetary Policy Review & Repo Rate Revisions</h4>
+                    <p className="text-[11px] text-slate-400">
+                      High relevance for upcoming SSC CGL General Awareness and Banking General Economy sections.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>

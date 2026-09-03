@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from './api';
 import FlashcardDeck from './FlashcardDeck';
+import CutoffPredictor from './CutoffPredictor';
 import {
   ArrowLeft,
   Clock,
@@ -73,7 +74,7 @@ export default function MockTest() {
           }));
         }
       } catch (err) {
-        console.warn('Network offline or error. Checking local cache...');
+        console.warn('Network offline or error. Checking local storage cache...');
         const cached = localStorage.getItem('shikshaiq_cached_mock');
         if (cached) {
           const parsed = JSON.parse(cached);
@@ -320,7 +321,7 @@ export default function MockTest() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Client-Side Zero-Dependency Printable PDF Scorecard & Solutions Exporter
+  // Printable PDF Scorecard & Solutions Report Exporter
   const handleDownloadPDF = () => {
     if (!result) return;
     setIsGeneratingPdf(true);
@@ -880,6 +881,11 @@ export default function MockTest() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Tier-1 Cut-Off Predictor Widget */}
+          {isSubmitted && result && (
+            <CutoffPredictor defaultScore={result.score} exam="SSC CGL" />
           )}
 
           {/* Speed vs Accuracy Matrix */}
