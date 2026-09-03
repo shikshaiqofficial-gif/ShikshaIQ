@@ -3,6 +3,8 @@ const dns = require('node:dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']); // Stabilizes MongoDB Atlas SRV lookup
 
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -13,6 +15,17 @@ const { GoogleGenAI } = require('@google/genai');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'shikshaiq_super_secret_jwt_key_2026';
+
+// ----------------------------------------------------
+// HTTP SERVER & SOCKET.IO SETUP
+// ----------------------------------------------------
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
 
 // ----------------------------------------------------
 // GEMINI SDK CLIENT INITIALIZATION
@@ -353,7 +366,7 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
   return saved;
 }
 
-// Midnight Cron Job (00:01 AM IST)
+// Midnight Cron Job (00:01 AM)
 cron.schedule('1 0 * * *', async () => {
   if (ai) {
     console.log('[Cron] Initiating midnight 100-question mock generation...');
@@ -366,14 +379,80 @@ cron.schedule('1 0 * * *', async () => {
 });
 
 // ----------------------------------------------------
+// REAL-TIME WEBSOCKET (SOCKET.IO) BATTLE ENGINE
+// ----------------------------------------------------
+const liveRooms = new Map();
+
+io.on('connection', (socket) => {
+  socket.on('join_battle', ({ roomId, playerName }) => {
+    socket.join(roomId);
+    if (!liveRooms.has(roomId)) {
+      liveRooms.set(roomId, { players: {} });
+    }
+
+    const room = liveRooms.get(roomId);
+    room.players[socket.id] = {
+      id: socket.id,
+      name: playerName || 'Challenger',
+      currentQ: 0,
+      score: 0,
+      finished: false
+    };
+
+    io.to(roomId).emit('room_update', {
+      players: Object.values(room.players)
+    });
+  });
+
+  socket.on('update_progress', ({ roomId, currentQ, score }) => {
+    const room = liveRooms.get(roomId);
+    if (room && room.players[socket.id]) {
+      room.players[socket.id].currentQ = currentQ;
+      room.players[socket.id].score = score;
+      io.to(roomId).emit('progress_update', {
+        players: Object.values(room.players)
+      });
+    }
+  });
+
+  socket.on('player_finished', ({ roomId, finalScore, timeTakenSeconds }) => {
+    const room = liveRooms.get(roomId);
+    if (room && room.players[socket.id]) {
+      room.players[socket.id].finished = true;
+      room.players[socket.id].score = finalScore;
+      room.players[socket.id].timeTakenSeconds = timeTakenSeconds;
+
+      const playerList = Object.values(room.players);
+      const allDone = playerList.length >= 2 && playerList.every((p) => p.finished);
+
+      io.to(roomId).emit('player_finished_broadcast', {
+        players: playerList,
+        battleOver: allDone
+      });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    liveRooms.forEach((room, roomId) => {
+      if (room.players[socket.id]) {
+        delete room.players[socket.id];
+        io.to(roomId).emit('room_update', {
+          players: Object.values(room.players)
+        });
+      }
+    });
+  });
+});
+
+// ----------------------------------------------------
 // API ROUTES
 // ----------------------------------------------------
 
-// Health and Root
+// Root & Health
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
-    service: 'ShikshaIQ AI Engine & Mock Test Backend',
+    service: 'ShikshaIQ AI Engine & Live Mock Test Backend',
     version: '1.0.0',
     documentation: '/api/health',
     timestamp: new Date().toISOString()
@@ -1041,38 +1120,129 @@ Return strictly raw JSON. Do NOT include backticks or markdown fences.`;
   }
 });
 
-// AI Study Plan Generator
-app.post('/api/study-plan/generate', verifyToken, async (req, res) => {
+// AI Smart Flashcard Deck Generator from Mistakes
+app.post('/api/study-plan/flashcards', verifyToken, async (req, res) => {
   try {
-    const { targetExam, weakSubjects, recentScore, accuracy } = req.body;
+    const { mistakes, targetExam = 'SSC CGL' } = req.body;
+
+    if (!Array.isArray(mistakes) || mistakes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one mistake question record is required to generate flashcards.'
+      });
+    }
 
     if (!process.env.GEMINI_API_KEY || !ai) {
-      return res.status(500).json({ success: false, message: 'GEMINI_API_KEY is not configured.' });
+      return res.status(500).json({
+        success: false,
+        message: 'GEMINI_API_KEY is not configured on the server.'
+      });
     }
 
-    const prompt = `You are the lead academic mentor at ShikshaIQ.
-Profile: Target Exam: ${targetExam || 'SSC CGL'}, Score: ${recentScore ?? 'N/A'}, Accuracy: ${accuracy ?? 'N/A'}%, Weak Areas: ${weakSubjects || 'Quantitative Aptitude, Reasoning'}
+    const mistakesSummary = mistakes.slice(0, 8).map((m, idx) =>
+      `${idx + 1}. [${m.subject} - ${m.topic || 'General'}]: ${m.questionText}\nContext/Derivation: ${m.explanation}`
+    ).join('\n\n');
 
-Return raw JSON only matching this schema:
-{
-  "focusSummary": "2-sentence diagnosis",
-  "days": [
-    {
-      "day": "Day 1",
-      "subject": "Quantitative Aptitude",
-      "topic": "Algebra",
-      "targetQuestions": 35,
-      "strategyTip": "Formula shortcut trick"
-    }
-  ]
-}`;
+    const prompt = `You are ShikshaIQ's Chief Concept Architect for competitive exams (${targetExam}, RRB NTPC).
+The student marked the following questions incorrect during their test:
+
+${mistakesSummary}
+
+For each failed concept, create an ultra-concise, high-retention revision flashcard.
+- The "front" should state the core question/concept trap or theorem trigger (e.g., "Incenter vs Circumcenter coordinate rules").
+- The "back" must provide the 1-liner theorem/formula, mnemonic, and a 10-second exam shortcut rule to never fail it again.
+- Tag each card with its subject domain.
+
+Return ONLY a valid JSON array matching this exact schema:
+[
+  {
+    "id": 1,
+    "subject": "Quantitative Aptitude",
+    "topic": "Geometry",
+    "front": "What is the relation between the angle formed at the incenter and the opposite vertex angle?",
+    "back": "Angle BIC = 90° + (∠A / 2). If circumcenter instead, Angle BOC = 2 × ∠A. Never mix these two up!",
+    "mnemonicOrTip": "Incenter = Add 90° + half; Circumcenter = Direct double."
+  }
+]
+
+Return strictly raw JSON. Do NOT include markdown code blocks, backticks, or extra commentary.`;
 
     const rawOutput = await invokeGeminiWithFallback(prompt);
     let cleanText = rawOutput.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-    res.json({ success: true, plan: JSON.parse(cleanText) });
+    const flashcards = JSON.parse(cleanText);
+
+    res.json({
+      success: true,
+      count: flashcards.length,
+      flashcards: Array.isArray(flashcards) ? flashcards : []
+    });
   } catch (error) {
-    console.error('Study plan error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Failed to generate study plan.' });
+    console.error('Flashcard synthesis error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to synthesize revision flashcards.'
+    });
+  }
+});
+
+// Category Cut-Off Predictor & Score Normalizer
+app.post('/api/analytics/cutoff-predictor', verifyToken, async (req, res) => {
+  try {
+    const { rawScore, exam = 'SSC CGL', category = 'UR' } = req.body;
+    const score = parseFloat(rawScore) || 0;
+
+    const CUTOFF_BENCHMARKS = {
+      'SSC CGL': {
+        UR: { safe: 145, boundary: 135 },
+        OBC: { safe: 138, boundary: 128 },
+        EWS: { safe: 135, boundary: 125 },
+        SC: { safe: 120, boundary: 110 },
+        ST: { safe: 110, boundary: 100 }
+      },
+      'RRB NTPC': {
+        UR: { safe: 78, boundary: 72 },
+        OBC: { safe: 74, boundary: 68 },
+        EWS: { safe: 71, boundary: 65 },
+        SC: { safe: 65, boundary: 58 },
+        ST: { safe: 60, boundary: 53 }
+      }
+    };
+
+    const targetExam = CUTOFF_BENCHMARKS[exam] ? exam : 'SSC CGL';
+    const benchmark = CUTOFF_BENCHMARKS[targetExam][category] || CUTOFF_BENCHMARKS[targetExam]['UR'];
+
+    let qualificationStatus = 'High Risk';
+    let probabilityPercent = 25;
+    let deltaNeeded = Math.max(0, benchmark.safe - score);
+
+    if (score >= benchmark.safe) {
+      qualificationStatus = 'Safe Zone (Cleared Tier-1)';
+      probabilityPercent = Math.min(99, Math.round(85 + ((score - benchmark.safe) * 0.5)));
+      deltaNeeded = 0;
+    } else if (score >= benchmark.boundary) {
+      qualificationStatus = 'Borderline / Moderate Chance';
+      probabilityPercent = Math.round(50 + (((score - benchmark.boundary) / (benchmark.safe - benchmark.boundary)) * 30));
+    } else {
+      probabilityPercent = Math.max(5, Math.round((score / benchmark.boundary) * 45));
+    }
+
+    const estimatedNormalizedScore = parseFloat((score * 1.045).toFixed(2));
+
+    res.json({
+      success: true,
+      exam: targetExam,
+      category,
+      rawScore: score,
+      estimatedNormalizedScore,
+      benchmarkSafe: benchmark.safe,
+      benchmarkBoundary: benchmark.boundary,
+      probabilityPercent,
+      qualificationStatus,
+      deltaNeeded: parseFloat(deltaNeeded.toFixed(2))
+    });
+  } catch (error) {
+    console.error('Cut-off predictor error:', error);
+    res.status(500).json({ success: false, message: 'Failed to project cut-off clearance.' });
   }
 });
 
@@ -1108,8 +1278,8 @@ if (!MONGO_URI) {
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('MongoDB Atlas connection established successfully.');
-    app.listen(PORT, () => {
-      console.log(`ShikshaIQ backend server running on port ${PORT}`);
+    server.listen(PORT, () => {
+      console.log(`ShikshaIQ backend & WebSocket engine running on port ${PORT}`);
     });
   })
   .catch((err) => {

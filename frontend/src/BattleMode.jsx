@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import API from './api';
 import {
   Swords,
   ArrowLeft,
-  Share2,
   Copy,
   Check,
   Clock,
   Trophy,
-  Award,
   Zap,
-  CheckCircle2,
-  XCircle,
   Users
 } from 'lucide-react';
+
+const SOCKET_SERVER_URL = 'https://shikshaiq-api.onrender.com';
 
 export default function BattleMode() {
   const { code } = useParams();
@@ -24,19 +23,55 @@ export default function BattleMode() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Active Battle Execution State
+  // Real-Time Live Competitor State
+  const socketRef = useRef(null);
+  const [competitors, setCompetitors] = useState([]);
+  const [battleOver, setBattleOver] = useState(false);
+
+  // Active Quiz State
   const [isStarted, setIsStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes default
+  const [timeLeft, setTimeLeft] = useState(300);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  // 1. Fetch challenge details
   useEffect(() => {
     if (code) {
       fetchChallenge(code);
     }
   }, [code]);
 
+  // 2. Initialize WebSocket Room
+  useEffect(() => {
+    if (!code) return;
+
+    socketRef.current = io(SOCKET_SERVER_URL, { transports: ['websocket'] });
+
+    const storedUser = localStorage.getItem('user');
+    const userName = storedUser ? JSON.parse(storedUser).name : 'Aspirant';
+
+    socketRef.current.emit('join_battle', { roomId: code, playerName: userName });
+
+    socketRef.current.on('room_update', ({ players }) => {
+      setCompetitors(players);
+    });
+
+    socketRef.current.on('progress_update', ({ players }) => {
+      setCompetitors(players);
+    });
+
+    socketRef.current.on('player_finished_broadcast', ({ players, battleOver: isOver }) => {
+      setCompetitors(players);
+      if (isOver) setBattleOver(true);
+    });
+
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, [code]);
+
+  // 3. Countdown timer
   useEffect(() => {
     if (!isStarted || isSubmitted) return;
     const timer = setInterval(() => {
@@ -82,27 +117,58 @@ export default function BattleMode() {
     }
   };
 
-  const handleCopyLink = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleSelectOption = (idx) => {
+    const qId = challenge.questions[currentIndex]._id;
+    const nextAnswers = { ...answers, [qId]: idx };
+    setAnswers(nextAnswers);
+
+    // Broadcast live question progress over WebSocket
+    if (socketRef.current && code) {
+      let currentScore = 0;
+      challenge.questions.forEach((q) => {
+        if (nextAnswers[q._id] === q.correctOptionIndex) currentScore += 2;
+      });
+
+      socketRef.current.emit('update_progress', {
+        roomId: code,
+        currentQ: currentIndex + 1,
+        score: currentScore
+      });
+    }
   };
 
   const handleSubmit = async () => {
     if (isSubmitted || !challenge) return;
+    setIsSubmitted(true);
+
+    let finalScore = 0;
+    challenge.questions.forEach((q) => {
+      if (answers[q._id] === q.correctOptionIndex) finalScore += 2;
+      else if (answers[q._id] !== undefined) finalScore -= 0.5;
+    });
+
+    if (socketRef.current && code) {
+      socketRef.current.emit('player_finished', {
+        roomId: code,
+        finalScore: Math.max(0, finalScore),
+        timeTakenSeconds: 300 - timeLeft
+      });
+    }
+
     try {
-      const res = await API.post(`/challenges/${challenge.challengeCode}/submit`, {
+      await API.post(`/challenges/${challenge.challengeCode}/submit`, {
         answers,
         timeTakenSeconds: 300 - timeLeft
       });
-      if (res.data?.challenge) {
-        setChallenge(res.data.challenge);
-        setIsSubmitted(true);
-      }
     } catch (err) {
-      alert('Battle submission failed.');
+      console.error('Submission recording error:', err);
     }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const formatTime = (sec) => {
@@ -119,7 +185,7 @@ export default function BattleMode() {
     );
   }
 
-  // 1. Initial State: No Battle Selected
+  // Create lobby screen
   if (!code && !challenge) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4">
@@ -128,16 +194,16 @@ export default function BattleMode() {
             <Swords className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-white">1v1 Rapid Peer Battle</h1>
+            <h1 className="text-xl font-black text-white">Live 1v1 Peer Battle Arena</h1>
             <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Challenge a friend or peer to solve 10 identical high-yield questions in 5 minutes.
+              Real-time duel. Watch your opponent's progress bar move live as you solve 10 questions.
             </p>
           </div>
           <button
             onClick={handleCreateBattle}
             className="w-full py-3 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-rose-900/30 cursor-pointer"
           >
-            <Zap className="w-4 h-4" /> Create Challenge Link
+            <Zap className="w-4 h-4" /> Create Live Arena Room
           </button>
           <button
             onClick={() => navigate('/dashboard')}
@@ -154,6 +220,7 @@ export default function BattleMode() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* Header */}
       <header className="h-16 bg-slate-900/80 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/dashboard')} className="p-2 text-slate-400 hover:text-white rounded-lg cursor-pointer">
@@ -161,7 +228,7 @@ export default function BattleMode() {
           </button>
           <div className="flex items-center gap-2">
             <Swords className="w-5 h-5 text-rose-500" />
-            <h1 className="font-bold text-sm">1v1 Peer Battle Arena</h1>
+            <h1 className="font-bold text-sm">Live 1v1 Battle Arena</h1>
           </div>
         </div>
 
@@ -175,15 +242,47 @@ export default function BattleMode() {
         )}
       </header>
 
-      <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center">
+      {/* Main Arena */}
+      <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center space-y-6">
+        {/* Real-Time Live Competitors Progress Bar (Active During Duel) */}
+        {isStarted && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="font-bold flex items-center gap-1.5 text-slate-200">
+                <Users className="w-3.5 h-3.5 text-indigo-400" /> Live Opponent Tracker
+              </span>
+              <span className="font-mono text-[11px] text-emerald-400 animate-pulse">● Live Synced</span>
+            </div>
+
+            <div className="space-y-2">
+              {competitors.map((player) => (
+                <div key={player.id} className="space-y-1">
+                  <div className="flex justify-between text-[11px] font-semibold">
+                    <span className="text-slate-300">{player.name}</span>
+                    <span className="font-mono text-indigo-400">
+                      {player.finished ? 'Finished' : `Q${player.currentQ || 0} / 10`}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-rose-500 transition-all duration-300"
+                      style={{ width: `${((player.currentQ || 0) / 10) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Lobby Screen */}
         {!isStarted && !isSubmitted ? (
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold rounded-full">
-              Code: {challenge?.challengeCode}
+              Arena Code: {challenge?.challengeCode}
             </div>
 
-            <h2 className="text-xl font-black text-white">Share Link with Opponent</h2>
+            <h2 className="text-xl font-black text-white">Invite Competitor via Link</h2>
 
             <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 p-2 rounded-xl text-xs">
               <input
@@ -201,23 +300,14 @@ export default function BattleMode() {
               </button>
             </div>
 
-            {/* Competitor Status */}
-            <div className="grid grid-cols-2 gap-3 text-left text-xs">
-              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Challenger 1</span>
-                <span className="font-bold text-slate-200 block text-sm mt-0.5">{challenge?.creator?.name}</span>
-                <span className="text-[11px] text-emerald-400 font-mono">
-                  {challenge?.creator?.submittedAt ? `Scored ${challenge.creator.score} pts` : 'Ready to start'}
-                </span>
-              </div>
-              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Challenger 2</span>
-                <span className="font-bold text-slate-200 block text-sm mt-0.5">
-                  {challenge?.opponent?.name || 'Awaiting Opponent...'}
-                </span>
-                <span className="text-[11px] text-indigo-400 font-mono">
-                  {challenge?.opponent?.submittedAt ? `Scored ${challenge.opponent.score} pts` : 'Link required'}
-                </span>
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-left text-xs space-y-2">
+              <span className="font-bold text-slate-400 uppercase text-[10px] block">Connected Gladiators ({competitors.length})</span>
+              <div className="flex flex-wrap gap-2">
+                {competitors.map((p) => (
+                  <span key={p.id} className="px-3 py-1 bg-slate-900 border border-slate-700 text-slate-200 rounded-lg font-medium">
+                    {p.name}
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -225,7 +315,7 @@ export default function BattleMode() {
               onClick={() => setIsStarted(true)}
               className="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-rose-900/30"
             >
-              <Swords className="w-4 h-4" /> Start Battle Now
+              <Swords className="w-4 h-4" /> Enter Live Duel
             </button>
           </div>
         ) : !isSubmitted ? (
@@ -244,7 +334,7 @@ export default function BattleMode() {
               {currentQ?.options?.map((opt, i) => (
                 <button
                   key={i}
-                  onClick={() => setAnswers({ ...answers, [currentQ._id]: i })}
+                  onClick={() => handleSelectOption(i)}
                   className={`w-full p-3.5 rounded-xl border text-xs sm:text-sm text-left flex items-center justify-between transition cursor-pointer ${
                     answers[currentQ._id] === i
                       ? 'border-rose-500 bg-rose-500/10 text-white'
@@ -283,7 +373,7 @@ export default function BattleMode() {
             </div>
           </div>
         ) : (
-          /* Battle Results Resolution */
+          /* Live Battle Results Resolution */
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl text-center">
             <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto flex items-center justify-center">
               <Trophy className="w-7 h-7" />
@@ -292,24 +382,22 @@ export default function BattleMode() {
             <div>
               <h2 className="text-xl font-black text-white">Battle Finished</h2>
               <p className="text-xs text-slate-400 mt-1">
-                {challenge?.status === 'completed'
-                  ? `Winner: ${challenge.winner === 'creator' ? challenge.creator.name : challenge.winner === 'opponent' ? challenge.opponent.name : 'Draw Match'}`
-                  : 'Awaiting opponent submission to calculate final winner.'}
+                {battleOver
+                  ? 'All gladiators have completed the duel!'
+                  : 'Waiting for opponent to finish... Live results will update instantly.'}
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
-                <span className="text-slate-500 text-[10px] font-bold block uppercase">{challenge?.creator?.name}</span>
-                <span className="text-xl font-black text-white font-mono">{challenge?.creator?.score ?? '--'} pts</span>
-                <span className="text-[11px] text-slate-400 block">{challenge?.creator?.accuracy ?? '--'}% Acc</span>
-              </div>
-
-              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
-                <span className="text-slate-500 text-[10px] font-bold block uppercase">{challenge?.opponent?.name || 'Opponent'}</span>
-                <span className="text-xl font-black text-white font-mono">{challenge?.opponent?.score ?? '--'} pts</span>
-                <span className="text-[11px] text-slate-400 block">{challenge?.opponent?.accuracy ?? '--'}% Acc</span>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {competitors.map((player) => (
+                <div key={player.id} className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-slate-500 text-[10px] font-bold block uppercase">{player.name}</span>
+                  <span className="text-xl font-black text-white font-mono">{player.score ?? 0} pts</span>
+                  <span className="text-[11px] text-slate-400 block">
+                    {player.finished ? `Completed in ${player.timeTakenSeconds}s` : 'Solving...'}
+                  </span>
+                </div>
+              ))}
             </div>
 
             <button
