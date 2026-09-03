@@ -12,6 +12,7 @@ import MistakeVault from './MistakeVault';
 import Home from './Home';
 import FlashcardDeck from './FlashcardDeck';
 import AdminPortal from './AdminPortal';
+import DoubtSolver from './DoubtSolver';
 
 
 // Code-Split Lazy Loaded Views (Loaded only when visited)
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/flashcards" element={<FlashcardDeck />} />
               <Route path="/admin" element={<AdminPortal />} />
+              <Route path="/doubts" element={<DoubtSolver />} />
 
 
               {/* Fallback */}

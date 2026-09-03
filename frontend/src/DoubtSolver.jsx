@@ -1,359 +1,201 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from './api';
-import ReactMarkdown from 'react-markdown';
 import {
   ArrowLeft,
-  Sparkles,
-  Send,
-  Loader2,
-  Volume2,
-  VolumeX,
-  Pause,
+  HelpCircle,
   Upload,
-  Image as ImageIcon,
-  X,
+  Sparkles,
+  Zap,
+  Send,
   CheckCircle2,
-  HelpCircle
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
+
+const SUBJECTS = ['Quantitative Aptitude', 'General Intelligence & Reasoning', 'General Awareness', 'English Comprehension'];
 
 export default function DoubtSolver() {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
-
-  const [question, setQuestion] = useState('');
   const [subject, setSubject] = useState('Quantitative Aptitude');
-  const [imagePreview, setImagePreview] = useState(null);
+  const [question, setQuestion] = useState('');
+  const [imageBase64, setImageBase64] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
   const [loading, setLoading] = useState(false);
-  const [solution, setSolution] = useState(null);
-  const [error, setError] = useState(null);
+  const [solution, setSolution] = useState('');
 
-  // Speech Synthesis
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  // Handle image upload & base64 conversion
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const subjects = [
-    'Quantitative Aptitude',
-    'Reasoning',
-    'General Awareness & Science',
-    'English Comprehension'
-  ];
-
-  // Stop speech synthesis on unmount
-  useEffect(() => {
-    return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImageBase64(reader.result);
+      setImagePreview(reader.result);
     };
-  }, []);
-
-  // Handle direct file selection
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('File size exceeds 5MB. Please upload a smaller screenshot.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+    reader.readAsDataURL(file);
   };
 
-  // Support pasting screenshot from clipboard (Ctrl + V)
-  const handlePaste = (e) => {
-    const items = e.clipboardData?.items;
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            setImagePreview(reader.result);
-          };
-          reader.readAsDataURL(file);
-          break;
-        }
-      }
+  const handleSolveDoubt = async (e) => {
+    e.preventDefault();
+    if (!question.trim() && !imageBase64) {
+      alert('Please enter a question description or upload a diagram image.');
+      return;
     }
-  };
 
-  const handleRemoveImage = () => {
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleAskDoubt = async (e) => {
-    e?.preventDefault();
-    if ((!question.trim() && !imagePreview) || loading) return;
-
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      setIsPaused(false);
-    }
+    setLoading(true);
+    setSolution('');
 
     try {
-      setLoading(true);
-      setError(null);
-      setSolution(null);
-
       const res = await API.post('/doubts/solve', {
-        question: question.trim(),
         subject,
-        imageBase64: imagePreview
+        question,
+        imageBase64
       });
 
       if (res.data?.solution) {
         setSolution(res.data.solution);
-      } else {
-        setError('No explanation could be generated. Please ensure your image is legible.');
       }
     } catch (err) {
-      console.error('Doubt solving failed:', err);
-      setError(err.response?.data?.message || 'Server error resolving doubt. Please try again.');
+      console.error('Doubt solver error:', err);
+      alert('Failed to resolve doubt. Please check your API key or network connection.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleSpeech = () => {
-    if (!window.speechSynthesis) {
-      alert('Speech synthesis is not supported on this browser.');
-      return;
-    }
-
-    if (isSpeaking && !isPaused) {
-      window.speechSynthesis.pause();
-      setIsPaused(true);
-      return;
-    }
-
-    if (isPaused) {
-      window.speechSynthesis.resume();
-      setIsPaused(false);
-      return;
-    }
-
-    const cleanText = solution
-      .replace(/[#*`_\[\]()]/g, ' ')
-      .replace(/\n+/g, '. ')
-      .replace(/\s+/g, ' ');
-
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice =
-      voices.find((v) => v.lang.includes('en-IN') || v.name.includes('India')) ||
-      voices.find((v) => v.lang.startsWith('en'));
-    if (preferredVoice) utterance.voice = preferredVoice;
-
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-    };
-
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-    };
-
-    window.speechSynthesis.speak(utterance);
-    setIsSpeaking(true);
-    setIsPaused(false);
-  };
-
-  const handleStopSpeech = () => {
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    setIsSpeaking(false);
-    setIsPaused(false);
-  };
-
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Header */}
-      <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
+      <header className="h-16 bg-slate-900/80 border-b border-slate-800 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700/50 transition cursor-pointer"
+            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-400" />
-            <h1 className="font-bold text-lg">AI Multimodal Doubt Solver</h1>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <HelpCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="font-bold text-sm sm:text-base">AI Multimodal Doubt Solver</h1>
+              <p className="text-[11px] text-slate-400">Powered by Gemini 3.6 Flash</p>
+            </div>
           </div>
+        </div>
+
+        <div className="text-xs font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl hidden sm:block">
+          ● Instant Step-by-Step Derivations
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        
-        {/* Question & Image Input Card */}
-        <div className="bg-slate-800/70 border border-slate-700/70 rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-300">Target Subject:</span>
-            <div className="flex gap-2 overflow-x-auto">
-              {subjects.map((sub) => (
-                <button
-                  key={sub}
-                  type="button"
-                  onClick={() => setSubject(sub)}
-                  className={`px-3 py-1 rounded-xl text-xs font-medium transition cursor-pointer border ${
-                    subject === sub
-                      ? 'bg-purple-600 border-purple-500 text-white shadow-md'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {sub.split(' ')[0]}
-                </button>
-              ))}
+      {/* Main Workspace */}
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-8 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          {/* Query Form Column */}
+          <div className="md:col-span-6 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+              <Sparkles className="w-4 h-4" />
+              <span>Ask Your Exam Doubt</span>
             </div>
-          </div>
 
-          <form onSubmit={handleAskDoubt} onPaste={handlePaste} className="space-y-4">
-            <textarea
-              rows="3"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Type your question or formula query here (you can also paste an image with Ctrl+V)..."
-              className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 leading-relaxed resize-none"
-            ></textarea>
-
-            {/* Hidden native file input */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-              accept="image/*"
-              className="hidden"
-            />
-
-            {/* Image Preview Thumbnail */}
-            {imagePreview && (
-              <div className="relative w-fit bg-slate-900 p-2 rounded-xl border border-purple-500/40">
-                <img
-                  src={imagePreview}
-                  alt="Uploaded Diagram"
-                  className="max-h-48 rounded-lg object-contain"
-                />
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  className="absolute -top-2 -right-2 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-500 transition shadow-lg cursor-pointer"
-                  title="Remove Image"
+            <form onSubmit={handleSolveDoubt} className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="text-slate-400 font-bold block">Subject Domain</label>
+                <select
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-emerald-500"
                 >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                  {SUBJECTS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
-            )}
 
-            {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-300 flex items-center gap-2 transition cursor-pointer"
-                >
-                  <ImageIcon className="w-4 h-4 text-purple-400" />
-                  <span>{imagePreview ? 'Change Screenshot' : 'Attach Diagram / Screenshot'}</span>
-                </button>
-                <span className="text-[11px] text-slate-400 hidden sm:inline">
-                  Supports JPG, PNG, WebP (or paste via Ctrl+V)
-                </span>
+              <div className="space-y-1.5">
+                <label className="text-slate-400 font-bold block">Question Description / Equation</label>
+                <textarea
+                  rows={4}
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Type your question or copy statement here..."
+                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
+
+              {/* Image Upload Box */}
+              <div className="space-y-1.5">
+                <label className="text-slate-400 font-bold block">Upload Diagram or Screenshot (Optional)</label>
+                {imagePreview ? (
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 p-2 flex items-center justify-center">
+                    <img src={imagePreview} alt="Upload Preview" className="max-h-40 rounded-xl object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => { setImageBase64(''); setImagePreview(''); }}
+                      className="absolute top-3 right-3 p-1.5 bg-slate-900 text-slate-300 hover:text-rose-400 rounded-full border border-slate-700 shadow-md cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition bg-slate-950/40">
+                    <ImageIcon className="w-6 h-6 text-slate-500 mb-1" />
+                    <span className="text-slate-300 font-medium">Click to upload image diagram</span>
+                    <span className="text-[10px] text-slate-500">PNG, JPG up to 10MB</span>
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  </label>
+                )}
               </div>
 
               <button
                 type="submit"
-                disabled={loading || (!question.trim() && !imagePreview)}
-                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30 cursor-pointer"
+                disabled={loading}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl transition cursor-pointer shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2"
               >
                 {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analyzing Image & Question...</span>
-                  </>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>Solve Doubt</span>
+                    <span>Solve Doubt with AI</span>
                   </>
                 )}
               </button>
+            </form>
+          </div>
+
+          {/* Solution Output Column */}
+          <div className="md:col-span-6 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl min-h-[420px] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
+              <span className="font-bold text-white flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-emerald-400" /> Expert Faculty Solution
+              </span>
+              <span className="text-slate-500 font-mono text-[10px]">Gemini 3.6 Flash</span>
             </div>
-          </form>
+
+            <div className="flex-1 flex flex-col justify-center">
+              {loading ? (
+                <div className="py-16 text-center space-y-3">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="text-xs text-slate-400">Analyzing theorem rules and deriving solution...</p>
+                </div>
+              ) : solution ? (
+                <div className="space-y-3 text-xs sm:text-sm text-slate-200 leading-relaxed font-mono whitespace-pre-wrap bg-slate-950 p-4 rounded-2xl border border-slate-800 max-h-[400px] overflow-y-auto">
+                  {solution}
+                </div>
+              ) : (
+                <div className="text-center space-y-2 py-16">
+                  <HelpCircle className="w-10 h-10 text-slate-700 mx-auto" />
+                  <p className="text-xs text-slate-500">Your AI-generated step-by-step derivation and shortcut trick will appear here.</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-
-        {error && (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-300 text-xs">
-            {error}
-          </div>
-        )}
-
-        {/* Detailed Solution Box */}
-        {solution && (
-          <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-6 shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-700/60">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white">Visual Derivation & Explanation</h3>
-                  <p className="text-[11px] text-slate-400">Step-by-step breakdown formulated by Gemini</p>
-                </div>
-              </div>
-
-              {/* Text-to-Speech Control Bar */}
-              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-700/70 px-3 py-1.5 rounded-xl">
-                <button
-                  type="button"
-                  onClick={handleToggleSpeech}
-                  className="flex items-center gap-1.5 text-xs font-medium text-purple-300 hover:text-purple-200 transition cursor-pointer"
-                >
-                  {isSpeaking && !isPaused ? (
-                    <>
-                      <Pause className="w-3.5 h-3.5" />
-                      <span>Pause Voice</span>
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="w-3.5 h-3.5" />
-                      <span>{isPaused ? 'Resume Voice' : 'Listen Audio'}</span>
-                    </>
-                  )}
-                </button>
-
-                {isSpeaking && (
-                  <button
-                    type="button"
-                    onClick={handleStopSpeech}
-                    className="text-slate-400 hover:text-rose-400 p-1 transition cursor-pointer border-l border-slate-700/60 pl-2"
-                    title="Stop Audio"
-                  >
-                    <VolumeX className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Markdown Output */}
-            <div className="text-sm text-slate-200 leading-relaxed space-y-3 prose prose-invert max-w-none">
-              <ReactMarkdown>{solution}</ReactMarkdown>
-            </div>
-          </div>
-        )}
-
       </main>
     </div>
   );
