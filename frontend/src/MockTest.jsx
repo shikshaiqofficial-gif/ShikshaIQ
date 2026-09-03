@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from './api';
+import FlashcardDeck from './FlashcardDeck';
 import {
   ArrowLeft,
   Clock,
   CheckCircle2,
   XCircle,
-  AlertCircle,
   Volume2,
   VolumeX,
-  RotateCcw,
   ChevronRight,
   ChevronLeft,
   Check,
@@ -18,7 +17,7 @@ import {
   BarChart3,
   Loader2,
   Download,
-  FileSpreadsheet
+  Layers
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -56,7 +55,11 @@ export default function MockTest() {
   const [drillAnswers, setDrillAnswers] = useState({});
   const [drillSubmitted, setDrillSubmitted] = useState(false);
 
-  // 1. Fetch 100-Q Daily Mock Test
+  // AI Flashcards State
+  const [flashcards, setFlashcards] = useState(null);
+  const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
+
+  // 1. Fetch 100-Q Daily Mock with LocalStorage Offline Caching Fallback
   useEffect(() => {
     const fetchMock = async () => {
       try {
@@ -64,9 +67,20 @@ export default function MockTest() {
         const res = await API.get('/tests/daily-100-mock?exam=SSC CGL');
         if (res.data?.questions?.length) {
           setQuestions(res.data.questions);
+          localStorage.setItem('shikshaiq_cached_mock', JSON.stringify({
+            date: new Date().toISOString().split('T')[0],
+            questions: res.data.questions
+          }));
         }
       } catch (err) {
-        console.error('Failed to load daily mock questions:', err);
+        console.warn('Network offline or error. Checking local cache...');
+        const cached = localStorage.getItem('shikshaiq_cached_mock');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setQuestions(parsed.questions || []);
+        } else {
+          alert('Unable to load mock test. Check your internet connection.');
+        }
       } finally {
         setLoading(false);
         lastSwitchTimeRef.current = Date.now();
@@ -155,17 +169,17 @@ export default function MockTest() {
     if (isSubmitted) return;
     recordActiveQuestionTime();
 
-    try {
-      const submissionPayload = {
-        exam: 'SSC CGL Daily 100 Mock',
-        timeTakenSeconds: 3600 - timeLeft,
-        answers: questions.map((q) => ({
-          questionId: q._id,
-          selectedOptionIndex: answers[q._id] !== undefined ? answers[q._id] : null,
-          timeSpentSeconds: questionTimes[q._id] || 0
-        }))
-      };
+    const submissionPayload = {
+      exam: 'SSC CGL Daily 100 Mock',
+      timeTakenSeconds: 3600 - timeLeft,
+      answers: questions.map((q) => ({
+        questionId: q._id,
+        selectedOptionIndex: answers[q._id] !== undefined ? answers[q._id] : null,
+        timeSpentSeconds: questionTimes[q._id] || 0
+      }))
+    };
 
+    try {
       const res = await API.post('/tests/submit', submissionPayload);
       if (res.data?.result) {
         setResult(res.data.result);
@@ -173,7 +187,53 @@ export default function MockTest() {
         setCurrentIndex(0);
       }
     } catch (err) {
-      alert('Submission failed. Check your network or login credentials.');
+      console.warn('Offline submission triggered. Evaluating client-side...');
+      let correct = 0;
+      let incorrect = 0;
+      let score = 0;
+      const analytics = [];
+
+      questions.forEach((q) => {
+        const selected = answers[q._id];
+        const isAttempted = selected !== undefined && selected !== null;
+        const isCorrect = isAttempted && selected === q.correctOptionIndex;
+
+        if (isAttempted) {
+          if (isCorrect) {
+            correct++;
+            score += 2;
+          } else {
+            incorrect++;
+            score -= 0.5;
+          }
+        }
+
+        analytics.push({
+          questionId: q._id,
+          subject: q.subject,
+          timeSpentSeconds: questionTimes[q._id] || 0,
+          isCorrect,
+          status: !isAttempted ? 'unattempted' : isCorrect ? 'correct' : 'incorrect'
+        });
+      });
+
+      const localResult = {
+        score: Math.max(0, parseFloat(score.toFixed(2))),
+        totalMarks: questions.length * 2,
+        accuracy: (correct + incorrect) > 0 ? parseFloat(((correct / (correct + incorrect)) * 100).toFixed(1)) : 0,
+        attempted: correct + incorrect,
+        correct,
+        incorrect,
+        questionAnalytics: analytics
+      };
+
+      const queue = JSON.parse(localStorage.getItem('shikshaiq_pending_sync') || '[]');
+      queue.push(submissionPayload);
+      localStorage.setItem('shikshaiq_pending_sync', JSON.stringify(queue));
+
+      setResult(localResult);
+      setIsSubmitted(true);
+      setCurrentIndex(0);
     }
   };
 
@@ -208,6 +268,34 @@ export default function MockTest() {
     }
   };
 
+  // Launch AI Mistake Flashcard Deck
+  const handleGenerateFlashcards = async () => {
+    if (!result || result.incorrect === 0) return;
+    setIsGeneratingFlashcards(true);
+
+    try {
+      const mistakes = questions.filter((q) => {
+        const selected = answers[q._id];
+        return selected !== undefined && selected !== q.correctOptionIndex;
+      });
+
+      const res = await API.post('/study-plan/flashcards', {
+        mistakes,
+        targetExam: 'SSC CGL'
+      });
+
+      if (res.data?.flashcards?.length > 0) {
+        setFlashcards(res.data.flashcards);
+      } else {
+        alert('Could not generate flashcards. Please try again.');
+      }
+    } catch (err) {
+      alert('Failed to synthesize flashcards.');
+    } finally {
+      setIsGeneratingFlashcards(false);
+    }
+  };
+
   // Native Web Speech API Narrator
   const toggleSpeech = (text) => {
     if (!('speechSynthesis' in window)) {
@@ -232,7 +320,7 @@ export default function MockTest() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Client-Side Zero-Dependency Scorecard & Solutions PDF Exporter
+  // Client-Side Zero-Dependency Printable PDF Scorecard & Solutions Exporter
   const handleDownloadPDF = () => {
     if (!result) return;
     setIsGeneratingPdf(true);
@@ -247,7 +335,7 @@ export default function MockTest() {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('Pop-up blocked. Please allow pop-ups for this site to download the report.');
+      alert('Pop-up blocked. Please allow pop-ups to print the report.');
       setIsGeneratingPdf(false);
       return;
     }
@@ -484,7 +572,7 @@ export default function MockTest() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column */}
+        {/* Left Column: Question Card / Remedial Drill */}
         <div className="lg:col-span-8 space-y-4">
           {!drillQuestions && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
@@ -708,7 +796,7 @@ export default function MockTest() {
           )}
         </div>
 
-        {/* Right Column */}
+        {/* Right Column: Scorecard, Speed vs Accuracy & Palette */}
         <div className="lg:col-span-4 space-y-4">
           {/* Post-Submission Scorecard */}
           {isSubmitted && result && (
@@ -749,25 +837,47 @@ export default function MockTest() {
                 </div>
               </div>
 
-              {/* AI Remedial Trigger Button */}
-              {result.incorrect > 0 && !drillQuestions && (
-                <button
-                  onClick={handleLaunchTrapBreaker}
-                  disabled={isDrillLoading}
-                  className="w-full py-2.5 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-rose-900/30 cursor-pointer"
-                >
-                  {isDrillLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Synthesizing Remedial Drill...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4" />
-                      <span>Break {result.incorrect} Concept Traps with AI</span>
-                    </>
+              {/* AI Remedial Actions */}
+              {result.incorrect > 0 && (
+                <div className="space-y-2 pt-1">
+                  {!drillQuestions && (
+                    <button
+                      onClick={handleLaunchTrapBreaker}
+                      disabled={isDrillLoading}
+                      className="w-full py-2.5 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-rose-900/30 cursor-pointer"
+                    >
+                      {isDrillLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Synthesizing Remedial Drill...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4" />
+                          <span>Break {result.incorrect} Concept Traps with AI</span>
+                        </>
+                      )}
+                    </button>
                   )}
-                </button>
+
+                  <button
+                    onClick={handleGenerateFlashcards}
+                    disabled={isGeneratingFlashcards}
+                    className="w-full py-2.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/50 text-indigo-300 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    {isGeneratingFlashcards ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Synthesizing Flashcards...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Layers className="w-4 h-4 text-indigo-400" />
+                        <span>Generate {result.incorrect} AI Revision Flashcards</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -805,7 +915,7 @@ export default function MockTest() {
             </div>
           )}
 
-          {/* Question Palette */}
+          {/* Question Status Palette */}
           {!drillQuestions && (
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
               <h3 className="font-bold text-xs text-white uppercase tracking-wider pb-2 border-b border-slate-800">
@@ -855,6 +965,14 @@ export default function MockTest() {
           )}
         </div>
       </main>
+
+      {/* AI Concept Revision Flashcard Modal */}
+      {flashcards && (
+        <FlashcardDeck
+          cards={flashcards}
+          onClose={() => setFlashcards(null)}
+        />
+      )}
     </div>
   );
 }
