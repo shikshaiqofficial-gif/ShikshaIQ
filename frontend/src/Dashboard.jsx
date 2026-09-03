@@ -12,7 +12,8 @@ import {
   Sparkles,
   Zap,
   FileText,
-  Swords
+  Swords,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -53,6 +54,7 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     navigate('/login');
   };
 
@@ -116,17 +118,23 @@ export default function Dashboard() {
                 <Swords className="w-4 h-4" /> 1v1 Peer Battle
               </button>
               <button
+                onClick={() => navigate('/mistakes')}
+                className="px-5 py-2.5 bg-amber-600/90 hover:bg-amber-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-amber-900/30 cursor-pointer"
+              >
+                <AlertTriangle className="w-4 h-4" /> Mistake Vault
+              </button>
+              <button
                 onClick={() => navigate('/custom-quiz')}
                 className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-2 cursor-pointer"
               >
-                <Sliders className="w-4 h-4 text-amber-400" /> Custom Topic Drill
+                <Sliders className="w-4 h-4 text-indigo-400" /> Custom Topic Drill
               </button>
             </div>
           </div>
         </section>
 
         {/* Feature Action Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <button
             onClick={() => navigate('/mock-test')}
             className="p-5 bg-slate-900/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
@@ -136,10 +144,10 @@ export default function Dashboard() {
             </div>
             <div>
               <h3 className="font-bold text-sm text-white group-hover:text-indigo-300 transition">
-                Daily 100 CBT Mock
+                Daily 100 Mock
               </h3>
               <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Full 60-minute, 200-mark simulation with negative marking and real-time rank predictions.
+                Full 60-minute, 200-mark CBT simulation with negative marking.
               </p>
             </div>
           </button>
@@ -156,24 +164,41 @@ export default function Dashboard() {
                 1v1 Peer Battle
               </h3>
               <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Create a shareable link and challenge a peer to a 5-minute rapid-fire test.
+                Live WebSocket duel. Watch opponent progress bars advance in real time.
+              </p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate('/mistakes')}
+            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-amber-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-white group-hover:text-amber-300 transition">
+                Mistake Vault
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
+                Review failed test questions with spaced repetition and instant shortcut derivations.
               </p>
             </div>
           </button>
 
           <button
             onClick={() => navigate('/custom-quiz')}
-            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-amber-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-cyan-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white group-hover:text-amber-300 transition">
-                Custom Topic Quiz
+              <h3 className="font-bold text-sm text-white group-hover:text-cyan-300 transition">
+                Topic Drill
               </h3>
               <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Select topics, question count (10/25/50), and difficulty to conquer weak areas.
+                Select specific sections, question counts (10/25/50), and target difficulties.
               </p>
             </div>
           </button>
@@ -190,7 +215,7 @@ export default function Dashboard() {
                 Doubt Solver
               </h3>
               <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Upload geometry screenshots or formula questions for instant shortcut tricks.
+                Upload geometry screenshots or formula questions for step-by-step tricks.
               </p>
             </div>
           </button>
@@ -204,10 +229,10 @@ export default function Dashboard() {
             </div>
             <div>
               <h3 className="font-bold text-sm text-white group-hover:text-purple-300 transition">
-                Content Admin
+                Admin Portal
               </h3>
               <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Import CSV or JSON question banks directly into MongoDB Atlas.
+                Import CSV or JSON question banks directly into the MongoDB collection.
               </p>
             </div>
           </button>
@@ -318,19 +343,3 @@ export default function Dashboard() {
     </div>
   );
 }
-<button
-  onClick={() => navigate('/mistakes')}
-  className="p-5 bg-slate-900/80 border border-slate-800 hover:border-rose-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
->
-  <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-105 transition">
-    <AlertTriangle className="w-5 h-5" />
-  </div>
-  <div>
-    <h3 className="font-bold text-sm text-white group-hover:text-rose-300 transition">
-      Mistake Vault
-    </h3>
-    <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-      Review questions you got wrong with instant formula derivation shortcuts.
-    </p>
-  </div>
-</button>
