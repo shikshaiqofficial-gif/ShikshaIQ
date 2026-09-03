@@ -8,6 +8,7 @@ import BattleMode from './BattleMode';
 // Static / Immediate Views
 import Home from './Home';
 import PwaInstallPrompt from './PwaInstallPrompt';
+import MistakeVault from './MistakeVault';
 
 
 // Code-Split Lazy Loaded Views (Loaded only when visited)
@@ -21,6 +22,7 @@ const CurrentAffairs = lazy(() => import('./CurrentAffairs'));
 const JobAlerts = lazy(() => import('./JobAlerts'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const FormulaFlashcards = lazy(() => import('./FormulaFlashcards'));
+
 
 // Fallback Loading Component
 function PageLoader() {
@@ -61,7 +63,9 @@ export default function App() {
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/custom-quiz" element={<CustomQuiz />} />
               <Route path="/battle" element={<BattleMode />} />
-<Route path="/battle/:code" element={<BattleMode />} />
+              <Route path="/mistakes" element={<MistakeVault />} />
+              <Route path="/battle/:code" element={<BattleMode />} />
+
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />

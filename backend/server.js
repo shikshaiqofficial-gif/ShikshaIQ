@@ -1362,7 +1362,50 @@ if (!MONGO_URI) {
   console.error('FATAL: MONGO_URI environment variable is missing.');
   process.exit(1);
 }
+// Schema definition for Mistake collection
+const mistakeSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  questionId: String,
+  subject: String,
+  topic: String,
+  questionText: String,
+  options: [String],
+  correctOptionIndex: Number,
+  explanation: String,
+  failedIn: { type: String, default: 'Mock Test' }
+}, { timestamps: true });
 
+const Mistake = mongoose.models.Mistake || mongoose.model('Mistake', mistakeSchema);
+
+// GET /api/user/mistakes - Retrieve student's mistake inventory
+app.get('/api/user/mistakes', async (req, res) => {
+  try {
+    let userId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        userId = decoded.id;
+      } catch (e) {}
+    }
+
+    const query = userId ? { userId } : {};
+    const mistakes = await Mistake.find(query).sort({ createdAt: -1 }).limit(50);
+    res.json({ success: true, count: mistakes.length, mistakes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to retrieve mistake vault.' });
+  }
+});
+
+// DELETE /api/user/mistakes/:id - Remove mastered concept
+app.delete('/api/user/mistakes/:id', async (req, res) => {
+  try {
+    await Mistake.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Mistake marked as mastered.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to delete mistake record.' });
+  }
+});
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('MongoDB Atlas connection established successfully.');

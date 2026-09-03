@@ -318,3 +318,19 @@ export default function Dashboard() {
     </div>
   );
 }
+<button
+  onClick={() => navigate('/mistakes')}
+  className="p-5 bg-slate-900/80 border border-slate-800 hover:border-rose-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+>
+  <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-105 transition">
+    <AlertTriangle className="w-5 h-5" />
+  </div>
+  <div>
+    <h3 className="font-bold text-sm text-white group-hover:text-rose-300 transition">
+      Mistake Vault
+    </h3>
+    <p className="text-[11px] text-slate-400 mt-1 leading-normal">
+      Review questions you got wrong with instant formula derivation shortcuts.
+    </p>
+  </div>
+</button>
