@@ -1186,7 +1186,7 @@ Return strictly raw JSON. Do NOT include markdown code blocks, backticks, or ext
 });
 
 // Category Cut-Off Predictor & Score Normalizer
-app.post('/api/analytics/cutoff-predictor', verifyToken, async (req, res) => {
+app.post('/api/analytics/cutoff-predictor',async (req, res) => {
   try {
     const { rawScore, exam = 'SSC CGL', category = 'UR' } = req.body;
     const score = parseFloat(rawScore) || 0;
