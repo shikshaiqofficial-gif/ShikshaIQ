@@ -1,355 +1,370 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from './api';
-import { ArrowLeft, Database, Trash2, Plus, Upload, CheckCircle2, AlertCircle, FileText, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Database,
+  PlusCircle,
+  Upload,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
+  Layers
+} from 'lucide-react';
 
-export default function AdminPanel() {
+const SUBJECTS = ['Quantitative Aptitude', 'General Intelligence & Reasoning', 'General Awareness', 'English Comprehension'];
+
+export default function AdminPortal() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('add');
   const [questions, setQuestions] = useState([]);
-  const [activeTab, setActiveTab] = useState('single'); // 'single' | 'bulk'
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
   // Single Question Form State
-  const [subject, setSubject] = useState('Quantitative Aptitude');
-  const [questionText, setQuestionText] = useState('');
-  const [options, setOptions] = useState(['', '', '', '']);
-  const [correctOptionIndex, setCorrectOptionIndex] = useState(0);
-  const [explanation, setExplanation] = useState('');
+  const [formData, setFormData] = useState({
+    exam: 'SSC CGL',
+    subject: 'Quantitative Aptitude',
+    topic: 'Algebra',
+    difficulty: 'Moderate',
+    questionText: '',
+    options: ['', '', '', ''],
+    correctOptionIndex: 0,
+    marks: 2,
+    negativeMarks: 0.5,
+    explanation: ''
+  });
 
-  // Bulk Upload State
-  const [bulkFile, setBulkFile] = useState(null);
-  const [bulkStatus, setBulkStatus] = useState(null);
-  const [isImporting, setIsImporting] = useState(false);
+  // Bulk JSON Import State
+  const [bulkJson, setBulkJson] = useState('');
 
   useEffect(() => {
-    loadQuestions();
-  }, []);
+    if (activeTab === 'manage') {
+      fetchQuestions();
+    }
+  }, [activeTab]);
 
-  const loadQuestions = async () => {
+  const fetchQuestions = async () => {
+    setLoading(true);
     try {
       const res = await API.get('/questions?limit=50');
-      if (res.data?.questions) setQuestions(res.data.questions);
-    } catch (err) {
-      console.warn('Questions load failure');
-    }
-  };
-
-  const handleAddQuestion = async (e) => {
-    e.preventDefault();
-    try {
-      await API.post('/questions', {
-        exam: 'SSC CGL',
-        subject,
-        topic: 'General Review',
-        difficulty: 'Moderate',
-        questionText,
-        options,
-        correctOptionIndex: Number(correctOptionIndex),
-        explanation
-      });
-      setQuestionText('');
-      setExplanation('');
-      setOptions(['', '', '', '']);
-      loadQuestions();
-    } catch (err) {
-      alert('Failed to insert question.');
-    }
-  };
-
-  const parseCSV = (text) => {
-    const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    const rows = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      // Regex handling for comma within quotes
-      const values = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
-      const row = {};
-      headers.forEach((h, idx) => {
-        row[h] = values[idx] ? values[idx].replace(/^"|"$/g, '').trim() : '';
-      });
-      rows.push(row);
-    }
-    return rows;
-  };
-
-  const handleBulkUpload = async (e) => {
-    e.preventDefault();
-    if (!bulkFile) return;
-
-    setIsImporting(true);
-    setBulkStatus(null);
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        let parsedQuestions = [];
-        const content = event.target.result;
-
-        if (bulkFile.name.endsWith('.json')) {
-          parsedQuestions = JSON.parse(content);
-        } else if (bulkFile.name.endsWith('.csv')) {
-          const rawRows = parseCSV(content);
-          parsedQuestions = rawRows.map(r => ({
-            exam: r.exam || 'SSC CGL',
-            subject: r.subject || 'Quantitative Aptitude',
-            topic: r.topic || 'General',
-            difficulty: r.difficulty || 'Moderate',
-            questionText: r.questionText || r.question,
-            options: [r.optionA, r.optionB, r.optionC, r.optionD],
-            correctOptionIndex: Number(r.correctOptionIndex ?? 0),
-            marks: Number(r.marks || 2),
-            negativeMarks: Number(r.negativeMarks || 0.5),
-            explanation: r.explanation || 'Standard derivation.'
-          }));
-        }
-
-        if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
-          throw new Error('No valid question records parsed from file.');
-        }
-
-        const res = await API.post('/questions/bulk', { questions: parsedQuestions });
-        setBulkStatus({
-          type: 'success',
-          message: `Success: ${res.data.count} questions inserted into database.`
-        });
-        setBulkFile(null);
-        loadQuestions();
-      } catch (err) {
-        setBulkStatus({
-          type: 'error',
-          message: err.response?.data?.message || err.message || 'Bulk upload failed.'
-        });
-      } finally {
-        setIsImporting(false);
+      if (res.data?.questions) {
+        setQuestions(res.data.questions);
       }
-    };
+    } catch (err) {
+      console.error('Failed to load questions:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    reader.readAsText(bulkFile);
+  const handleOptionChange = (idx, val) => {
+    const newOpts = [...formData.options];
+    newOpts[idx] = val;
+    setFormData({ ...formData, options: newOpts });
+  };
+
+  const handleSingleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    try {
+      await API.post('/questions', formData);
+      setMessage('Question added successfully to MongoDB Atlas!');
+      setFormData({
+        exam: 'SSC CGL',
+        subject: 'Quantitative Aptitude',
+        topic: 'Algebra',
+        difficulty: 'Moderate',
+        questionText: '',
+        options: ['', '', '', ''],
+        correctOptionIndex: 0,
+        marks: 2,
+        negativeMarks: 0.5,
+        explanation: ''
+      });
+    } catch (err) {
+      setMessage('Failed to add question. Check required fields.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    try {
+      const parsed = JSON.parse(bulkJson);
+      const res = await API.post('/questions/bulk', { questions: parsed });
+      setMessage(`Successfully imported ${res.data?.count || parsed.length} questions!`);
+      setBulkJson('');
+    } catch (err) {
+      setMessage('Invalid JSON format or server error during bulk import.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this question?')) return;
     try {
       await API.delete(`/questions/${id}`);
-      loadQuestions();
+      setQuestions((prev) => prev.filter((q) => q._id !== id));
     } catch (err) {
       alert('Failed to delete question.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* Header */}
+      <header className="h-16 bg-slate-900/80 border-b border-slate-800 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="p-2 text-slate-400 hover:text-white rounded-lg cursor-pointer">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
+          >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <Database className="w-5 h-5 text-indigo-400" />
-            <h1 className="font-bold text-sm sm:text-base">Repository & Content Administration</h1>
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="font-bold text-sm sm:text-base">Admin Portal & Question Bank</h1>
+              <p className="text-[11px] text-slate-400">Database Seeding & Management</p>
+            </div>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs">
+          <button
+            onClick={() => setActiveTab('add')}
+            className={`px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              activeTab === 'add' ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'
+            }`}
+          >
+            Add Single
+          </button>
+          <button
+            onClick={() => setActiveTab('bulk')}
+            className={`px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              activeTab === 'bulk' ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'
+            }`}
+          >
+            Bulk JSON
+          </button>
+          <button
+            onClick={() => setActiveTab('manage')}
+            className={`px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              activeTab === 'manage' ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'
+            }`}
+          >
+            Manage Bank
+          </button>
         </div>
       </header>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Input Form */}
-        <div className="lg:col-span-5 bg-slate-800/80 border border-slate-700/70 rounded-2xl p-5 space-y-4 shadow-xl">
-          <div className="flex gap-2 p-1 bg-slate-900 rounded-xl border border-slate-800">
-            <button
-              type="button"
-              onClick={() => setActiveTab('single')}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeTab === 'single' ? 'bg-indigo-600 text-white' : 'text-slate-400'
-              }`}
-            >
-              Manual Form
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('bulk')}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeTab === 'bulk' ? 'bg-indigo-600 text-white' : 'text-slate-400'
-              }`}
-            >
-              Bulk Import (CSV/JSON)
-            </button>
+      {/* Main Workspace */}
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-8 space-y-6">
+        {message && (
+          <div className="p-4 bg-purple-950/60 border border-purple-500/40 text-purple-200 rounded-2xl text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0" />
+            <span>{message}</span>
           </div>
+        )}
 
-          {activeTab === 'single' ? (
-            <form onSubmit={handleAddQuestion} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-400 mb-1">Subject</label>
+        {/* Tab 1: Add Single Question */}
+        {activeTab === 'add' && (
+          <form onSubmit={handleSingleSubmit} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
+            <h2 className="text-lg font-black text-white">Add Individual Question</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="text-slate-400 font-bold block">Exam</label>
+                <input
+                  type="text"
+                  value={formData.exam}
+                  onChange={(e) => setFormData({ ...formData, exam: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-400 font-bold block">Subject</label>
                 <select
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none"
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-purple-500"
                 >
-                  <option value="Quantitative Aptitude">Quantitative Aptitude</option>
-                  <option value="General Intelligence & Reasoning">General Intelligence & Reasoning</option>
-                  <option value="General Awareness">General Awareness</option>
-                  <option value="English Comprehension">English Comprehension</option>
+                  {SUBJECTS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
                 </select>
               </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1">Question Statement</label>
-                <textarea
-                  required
-                  rows={3}
-                  value={questionText}
-                  onChange={(e) => setQuestionText(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white outline-none resize-none"
+              <div className="space-y-1.5">
+                <label className="text-slate-400 font-bold block">Topic</label>
+                <input
+                  type="text"
+                  value={formData.topic}
+                  onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                  placeholder="e.g. Geometry, Syllogism"
+                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-purple-500"
                 />
               </div>
 
-              {options.map((opt, idx) => (
-                <div key={idx}>
-                  <label className="block text-slate-400 mb-0.5">Option {String.fromCharCode(65 + idx)}</label>
+              <div className="space-y-1.5">
+                <label className="text-slate-400 font-bold block">Difficulty</label>
+                <select
+                  value={formData.difficulty}
+                  onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-purple-500"
+                >
+                  <option value="Easy">Easy</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Hard">Hard</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-xs">
+              <label className="text-slate-400 font-bold block">Question Statement</label>
+              <textarea
+                rows={3}
+                value={formData.questionText}
+                onChange={(e) => setFormData({ ...formData, questionText: e.target.value })}
+                placeholder="Enter question text..."
+                className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-purple-500 resize-none"
+                required
+              />
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <label className="text-slate-400 font-bold block">Options (A, B, C, D)</label>
+              {formData.options.map((opt, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-[11px] text-slate-300">
+                    {String.fromCharCode(65 + i)}
+                  </span>
                   <input
                     type="text"
-                    required
                     value={opt}
-                    onChange={(e) => {
-                      const copy = [...options];
-                      copy[idx] = e.target.value;
-                      setOptions(copy);
-                    }}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white outline-none"
+                    onChange={(e) => handleOptionChange(i, e.target.value)}
+                    placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                    className="flex-1 bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-white outline-none focus:border-purple-500"
+                    required
                   />
+                  <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="correctOption"
+                      checked={formData.correctOptionIndex === i}
+                      onChange={() => setFormData({ ...formData, correctOptionIndex: i })}
+                      className="accent-purple-500"
+                    />
+                    <span>Correct</span>
+                  </label>
                 </div>
               ))}
-
-              <div>
-                <label className="block text-slate-400 mb-1">Correct Option Index (0-3)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="3"
-                  value={correctOptionIndex}
-                  onChange={(e) => setCorrectOptionIndex(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Explanation / Derivation</label>
-                <textarea
-                  required
-                  rows={2}
-                  value={explanation}
-                  onChange={(e) => setExplanation(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white outline-none resize-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition cursor-pointer"
-              >
-                Commit to Question Bank
-              </button>
-            </form>
-          ) : (
-            <div className="space-y-4 text-xs">
-              <div className="border-2 border-dashed border-slate-700 rounded-2xl p-6 text-center hover:border-indigo-500/70 transition">
-                <input
-                  type="file"
-                  id="bulk-file"
-                  accept=".csv, .json"
-                  onChange={(e) => setBulkFile(e.target.files[0])}
-                  className="hidden"
-                />
-                <label htmlFor="bulk-file" className="cursor-pointer flex flex-col items-center gap-2">
-                  <Upload className="w-8 h-8 text-indigo-400" />
-                  <span className="font-semibold text-white">
-                    {bulkFile ? bulkFile.name : 'Choose CSV or JSON File'}
-                  </span>
-                  <span className="text-[11px] text-slate-500">Supports .csv and structured .json exports</span>
-                </label>
-              </div>
-
-              <div className="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1.5 text-[11px] text-slate-400">
-                <p className="font-bold text-slate-300">Expected CSV Headers:</p>
-                <code>questionText,optionA,optionB,optionC,optionD,correctOptionIndex,subject,explanation</code>
-              </div>
-
-              {bulkStatus && (
-                <div
-                  className={`p-3 rounded-xl flex items-center gap-2 ${
-                    bulkStatus.type === 'success'
-                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                      : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
-                  }`}
-                >
-                  {bulkStatus.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-                  <span>{bulkStatus.message}</span>
-                </div>
-              )}
-
-              <button
-                onClick={handleBulkUpload}
-                disabled={!bulkFile || isImporting}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-900/30"
-              >
-                {isImporting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Importing into Atlas...</span>
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4" />
-                    <span>Upload & Insert Questions</span>
-                  </>
-                )}
-              </button>
             </div>
-          )}
-        </div>
 
-        {/* Right Column: Existing Records */}
-        <div className="lg:col-span-7 bg-slate-800/80 border border-slate-700/70 rounded-2xl p-5 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-700/60">
-            <h2 className="text-sm font-bold text-white">
-              Loaded Question Records ({questions.length})
-            </h2>
+            <div className="space-y-1.5 text-xs">
+              <label className="text-slate-400 font-bold block">Explanation & Shortcut Derivation</label>
+              <textarea
+                rows={3}
+                value={formData.explanation}
+                onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
+                placeholder="Step-by-step solution..."
+                className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-purple-500 resize-none"
+                required
+              />
+            </div>
+
             <button
-              onClick={loadQuestions}
-              className="text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer"
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-lg shadow-purple-900/30"
             >
-              Refresh
+              {loading ? 'Adding Question...' : 'Save Question to Database'}
             </button>
-          </div>
+          </form>
+        )}
 
-          <div className="space-y-3 max-h-[620px] overflow-y-auto pr-1">
-            {questions.map((q) => (
-              <div key={q._id} className="p-3.5 bg-slate-900/80 border border-slate-800 rounded-xl text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-indigo-400 font-bold">{q.subject}</span>
-                  <button
-                    onClick={() => handleDelete(q._id)}
-                    className="text-rose-400 hover:text-rose-300 transition cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <p className="text-white font-medium">{q.questionText}</p>
-                <div className="grid grid-cols-2 gap-1 text-[11px] text-slate-400 pt-1">
-                  {q.options?.map((opt, i) => (
-                    <div
-                      key={i}
-                      className={i === q.correctOptionIndex ? 'text-emerald-400 font-semibold' : ''}
-                    >
-                      {String.fromCharCode(65 + i)}. {opt}
-                    </div>
-                  ))}
-                </div>
-                <span className="text-[10px] text-slate-500 block pt-1">ID: {q._id}</span>
+        {/* Tab 2: Bulk JSON Import */}
+        {activeTab === 'bulk' && (
+          <form onSubmit={handleBulkSubmit} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
+            <h2 className="text-lg font-black text-white">Bulk Question Import (JSON Array)</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Paste a valid JSON array matching the question schema to import multiple questions simultaneously.
+            </p>
+
+            <div className="space-y-1.5 text-xs font-mono">
+              <textarea
+                rows={10}
+                value={bulkJson}
+                onChange={(e) => setBulkJson(e.target.value)}
+                placeholder={'[\n  {\n    "exam": "SSC CGL",\n    "subject": "Quantitative Aptitude",\n    "topic": "Algebra",\n    "questionText": "...",\n    "options": ["A", "B", "C", "D"],\n    "correctOptionIndex": 0,\n    "explanation": "..."\n  }\n]'}
+                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-slate-200 outline-none focus:border-purple-500 resize-none"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-lg shadow-purple-900/30 flex items-center justify-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              <span>{loading ? 'Importing Batch...' : 'Import Question Batch'}</span>
+            </button>
+          </form>
+        )}
+
+        {/* Tab 3: Manage Question Bank */}
+        {activeTab === 'manage' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
+              <h2 className="font-bold text-white">Question Bank Inventory ({questions.length})</h2>
+              <span className="text-slate-400 font-mono">MongoDB Atlas</span>
+            </div>
+
+            {loading ? (
+              <div className="py-12 flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-            ))}
+            ) : questions.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-500">No questions found in database.</div>
+            ) : (
+              <div className="space-y-3">
+                {questions.map((q) => (
+                  <div key={q._id} className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex items-start justify-between gap-4 text-xs">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/30 text-purple-300 font-bold rounded-md text-[10px]">
+                          {q.subject}
+                        </span>
+                        <span className="text-slate-500 text-[10px]">• {q.difficulty}</span>
+                      </div>
+                      <p className="font-medium text-slate-200 leading-snug">{q.questionText}</p>
+                    </div>
+
+                    <button
+                      onClick={() => handleDelete(q._id)}
+                      className="p-2 text-slate-500 hover:text-rose-400 transition cursor-pointer shrink-0"
+                      title="Delete Question"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

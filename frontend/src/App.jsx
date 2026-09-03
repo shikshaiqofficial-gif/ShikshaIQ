@@ -11,6 +11,7 @@ import PwaInstallPrompt from './PwaInstallPrompt';
 import MistakeVault from './MistakeVault';
 import Home from './Home';
 import FlashcardDeck from './FlashcardDeck';
+import AdminPortal from './AdminPortal';
 
 
 // Code-Split Lazy Loaded Views (Loaded only when visited)
@@ -70,6 +71,7 @@ export default function App() {
               <Route path="/battle/:code" element={<BattleMode />} />
               <Route path="/" element={<Home />} />
               <Route path="/flashcards" element={<FlashcardDeck />} />
+              <Route path="/admin" element={<AdminPortal />} />
 
 
               {/* Fallback */}
