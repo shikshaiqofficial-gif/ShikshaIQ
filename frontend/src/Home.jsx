@@ -1,216 +1,206 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import {
+  Zap,
+  Swords,
+  BookOpen,
+  Award,
+  Sliders,
+  HelpCircle,
+  TrendingUp,
+  ShieldCheck,
+  ArrowRight,
+  CheckCircle2,
+  Sparkles,
+  Play
+} from 'lucide-react';
 
-const Home = () => {
+export default function Home() {
+  const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 font-sans">
-      {/* Top Navbar */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 px-4 md:px-8 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-indigo-900 rounded-lg flex items-center justify-center font-black text-amber-400 text-lg shadow">
-              SIQ
-            </div>
-            <div>
-              <span className="text-xl font-black text-indigo-950 tracking-tight">ShikshaIQ</span>
-              <span className="hidden sm:block text-[9px] font-bold text-slate-500 uppercase tracking-widest -mt-1">Learn Smart. Rank Higher.</span>
-            </div>
-          </Link>
-
-          <div className="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-700">
-            <Link to="/" className="text-orange-500 font-bold">Home</Link>
-            <div className="cursor-pointer hover:text-orange-500">Courses ▾</div>
-            <div className="cursor-pointer hover:text-orange-500">Test Series ▾</div>
-            <div className="cursor-pointer hover:text-orange-500">Live Classes</div>
-            <div className="cursor-pointer hover:text-orange-500">Current Affairs</div>
-            <div className="cursor-pointer hover:text-orange-500">PYQ</div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+      {/* ---------------------------------------------------- */}
+      {/* NAVIGATION BAR */}
+      {/* ---------------------------------------------------- */}
+      <header className="h-20 bg-slate-950/80 border-b border-slate-900 px-4 sm:px-12 flex items-center justify-between sticky top-0 z-50 backdrop-blur-xl">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+          {/* Animated Logo Icon */}
+          <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-rose-500 flex items-center justify-center font-black text-white text-xl shadow-xl shadow-indigo-600/30 animate-pulse">
+            <span className="relative z-10">S</span>
+            <div className="absolute inset-0 rounded-2xl bg-indigo-500 blur-md opacity-40 animate-ping"></div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link to="/login" className="px-4 py-2 text-sm font-bold text-slate-700 hover:text-indigo-600 transition">
-            Login
-          </Link>
-          <Link to="/register" className="px-5 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 rounded-lg shadow transition">
-            Sign Up
-          </Link>
-        </div>
-      </nav>
-
-      {/* Dark Navy Hero Section */}
-      <section className="bg-slate-900 text-white relative overflow-hidden px-6 lg:px-12 pt-12 pb-16">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-7 space-y-6">
-            <span className="inline-block px-3 py-1 text-xs font-bold bg-indigo-950 text-indigo-300 border border-indigo-700 rounded-full">
-              #1 Learning Platform for Competitive Exams
+          <div>
+            <span className="font-extrabold text-lg tracking-tight text-white flex items-center gap-1.5">
+              ShikshaIQ <span className="text-[10px] bg-gradient-to-r from-indigo-500 to-rose-500 text-white font-mono px-2 py-0.5 rounded-full shadow-sm">AI 2026</span>
             </span>
-            <h1 className="text-3xl sm:text-5xl font-extrabold leading-tight tracking-tight">
-              Crack Every Exam <br />
-              <span className="text-orange-400">With Confidence</span>
-            </h1>
-            <p className="text-slate-300 text-sm sm:text-base max-w-xl">
-              India's Smart Learning Platform for SSC, Banking, Railway, UPSC, Defence, Teaching, State Exams and more.
+            <span className="text-[10px] text-slate-400 block tracking-wide">Next-Gen Exam Prep</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 sm:gap-4">
+          <button
+            onClick={() => navigate('/login')}
+            className="px-4 py-2 text-xs sm:text-sm font-bold text-slate-300 hover:text-white transition cursor-pointer"
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => navigate('/register')}
+            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-lg shadow-indigo-600/30 cursor-pointer flex items-center gap-1.5"
+          >
+            <span>Get Started Free</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </header>
+
+      {/* ---------------------------------------------------- */}
+      {/* HERO SECTION */}
+      {/* ---------------------------------------------------- */}
+      <section className="relative pt-16 pb-24 px-4 sm:px-8 max-w-7xl mx-auto flex flex-col items-center text-center space-y-8">
+        {/* Glowing background gradient elements */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-rose-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        {/* Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold shadow-inner">
+          <Sparkles className="w-4 h-4 text-indigo-400 animate-spin" />
+          <span>Powered by Gemini 3.6 Flash AI & Real-Time WebSockets</span>
+        </div>
+
+        {/* Headline */}
+        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white max-w-4xl leading-[1.1]">
+          Master Indian Competitive Exams with <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-rose-400 bg-clip-text text-transparent">AI Intelligence</span>
+        </h1>
+
+        {/* Subtitle */}
+        <p className="text-sm sm:text-lg text-slate-400 max-w-2xl leading-relaxed">
+          Experience 100-question CBT mock simulations, live 1v1 peer battle arenas with real-time progress syncing, and adaptive weakness drill engines built for SSC CGL & RRB success.
+        </p>
+
+        {/* CTA Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+          <button
+            onClick={() => navigate('/mock-test')}
+            className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition flex items-center gap-2.5 shadow-xl shadow-indigo-600/40 cursor-pointer text-sm sm:text-base group"
+          >
+            <Zap className="w-5 h-5 group-hover:scale-110 transition" />
+            <span>Launch Daily 100-Q CBT Mock</span>
+          </button>
+          <button
+            onClick={() => navigate('/battle')}
+            className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 font-bold rounded-2xl transition flex items-center gap-2.5 cursor-pointer text-sm sm:text-base shadow-lg"
+          >
+            <Swords className="w-5 h-5 text-rose-400" />
+            <span>Enter Live 1v1 Battle</span>
+          </button>
+        </div>
+
+        {/* Hero Mockup Preview Card */}
+        <div className="w-full max-w-5xl mt-12 bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-md relative">
+          <div className="absolute -top-3 left-8 bg-indigo-600 text-white text-[10px] font-mono px-3 py-1 rounded-full uppercase tracking-wider font-bold">
+            Live CBT Interface Preview
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-left space-y-2">
+              <span className="text-[10px] text-indigo-400 font-bold uppercase">Quantitative Aptitude</span>
+              <p className="text-xs font-semibold text-slate-200">Algebraic Identities & Geometry Theorem Traps</p>
+              <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                <div className="h-full bg-indigo-500 w-3/4"></div>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-left space-y-2">
+              <span className="text-[10px] text-rose-400 font-bold uppercase">Live 1v1 Duel Arena</span>
+              <p className="text-xs font-semibold text-slate-200">Real-Time Opponent Progress Bar Sync</p>
+              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Synced @ 60fps
+              </div>
+            </div>
+            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-left space-y-2">
+              <span className="text-[10px] text-amber-400 font-bold uppercase">Mistake Vault</span>
+              <p className="text-xs font-semibold text-slate-200">Spaced Repetition & Shortcut Derivations</p>
+              <div className="text-[10px] text-slate-400 font-mono">Active Review Cadence</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------- */}
+      {/* FEATURE HIGHLIGHTS GRID */}
+      {/* ---------------------------------------------------- */}
+      py-20 px-4 sm:px-8 max-w-7xl mx-auto space-y-16">
+        <div className="text-center space-y-3">
+          <h2 className="text-2xl sm:text-4xl font-black text-white">Engineered for Top All-India Ranks</h2>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+            Everything you need to crack SSC CGL, RRB NTPC, and Banking exams in one high-performance web app.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1 */}
+          <div
+            onClick={() => navigate('/mock-test')}
+            className="p-8 bg-slate-900/60 border border-slate-800/80 hover:border-indigo-500/50 rounded-3xl space-y-4 transition duration-300 group cursor-pointer shadow-xl hover:shadow-indigo-500/10"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition">
+              <BookOpen className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white">Daily 100-Q CBT Simulation</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Full-length 60-minute tests generated daily with authentic exam difficulty ratios, negative marking, and PDF scorecards.
             </p>
+            <span className="text-xs font-bold text-indigo-400 flex items-center gap-1 group-hover:translate-x-1 transition">
+              Start Test <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+          </div>
 
-            <div className="flex flex-wrap gap-4 pt-2">
-              <Link to="/courses" className="px-6 py-3 text-sm font-bold text-slate-900 bg-orange-400 hover:bg-orange-500 rounded-lg shadow-md transition">
-                Explore Courses →
-              </Link>
-              <Link to="/test" className="px-6 py-3 text-sm font-bold text-emerald-950 bg-emerald-400 hover:bg-emerald-500 rounded-lg shadow-md transition flex items-center gap-2">
-                <span>📄</span> Free Mock Test
-              </Link>
+          {/* Card 2 */}
+          <div
+            onClick={() => navigate('/battle')}
+            className="p-8 bg-slate-900/60 border border-slate-800/80 hover:border-rose-500/50 rounded-3xl space-y-4 transition duration-300 group cursor-pointer shadow-xl hover:shadow-rose-500/10"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition">
+              <Swords className="w-6 h-6" />
             </div>
-
-            <div className="pt-2 text-xs text-slate-400 flex items-center gap-2">
-              <span className="text-amber-400 text-sm">★★★★★</span>
-              <span>500K+ Students Trust Us</span>
-            </div>
-          </div>
-
-          {/* Hero Decorative Visual Box */}
-          <div className="lg:col-span-5 relative flex justify-center">
-            <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-2xl relative">
-              <div className="flex items-center justify-between border-b border-slate-700 pb-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center font-bold text-white">
-                    SIQ
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-white">Student Progress</p>
-                    <p className="text-xs text-slate-400">Mock Score Analysis</p>
-                  </div>
-                </div>
-                <span className="text-xs font-bold px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded">
-                  +120 Score Boost
-                </span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between text-xs text-slate-300">
-                  <span>Accuracy</span>
-                  <span className="font-bold text-emerald-400">88%</span>
-                </div>
-                <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div className="bg-emerald-400 h-full w-[88%]"></div>
-                </div>
-                <div className="flex justify-between text-xs text-slate-300">
-                  <span>Syllabus Completed</span>
-                  <span className="font-bold text-orange-400">80%</span>
-                </div>
-                <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div className="bg-orange-400 h-full w-[80%]"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Floating Search Bar */}
-        <div className="max-w-3xl mx-auto mt-10 relative z-10">
-          <div className="bg-white rounded-xl shadow-lg p-2 flex items-center gap-2 border border-slate-200">
-            <span className="pl-3 text-slate-400 text-lg">🔍</span>
-            <input
-              type="text"
-              placeholder="Search Courses, Exams, Tests and more..."
-              className="w-full bg-transparent px-2 py-2 text-sm text-slate-800 outline-none"
-            />
-            <button className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-2.5 rounded-lg text-sm transition">
-              Search
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Key Metric Stats Banner */}
-      <section className="max-w-6xl mx-auto -mt-6 relative z-20 px-4">
-        <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-6 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-900">500K+</p>
-            <p className="text-xs sm:text-sm font-semibold text-slate-500">Active Students</p>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-900">1000+</p>
-            <p className="text-xs sm:text-sm font-semibold text-slate-500">Mock Tests</p>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-900">500+</p>
-            <p className="text-xs sm:text-sm font-semibold text-slate-500">Video Courses</p>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-900">95%</p>
-            <p className="text-xs sm:text-sm font-semibold text-slate-500">Success Rate</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Grid */}
-      <section className="max-w-6xl mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tight">
-            Everything You Need To Succeed
-          </h2>
-          <p className="text-slate-500 text-sm mt-2">Learn Smart. Rank Higher with complete test prep resources.</p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {[
-            { title: "Online Courses", desc: "Expert-led courses for every exam", icon: "📚", color: "bg-purple-100 text-purple-700" },
-            { title: "Test Series & Mocks", desc: "Unlimited tests with detailed analysis", icon: "📋", color: "bg-blue-100 text-blue-700" },
-            { title: "AI Doubt Solver", desc: "Get instant solutions anytime", icon: "🤖", color: "bg-emerald-100 text-emerald-700" },
-            { title: "Job Alerts", desc: "Latest government & private updates", icon: "💼", color: "bg-red-100 text-red-700" },
-            { title: "Live Classes", desc: "Learn live from top educators", icon: "📹", color: "bg-orange-100 text-orange-700" },
-            { title: "Notes & PDFs", desc: "Download free notes & study material", icon: "📑", color: "bg-cyan-100 text-cyan-700" },
-            { title: "Previous Year Papers", desc: "Practice with actual PYQs", icon: "📝", color: "bg-amber-100 text-amber-700" },
-            { title: "Performance Tracker", desc: "Track progress and improve", icon: "🏆", color: "bg-indigo-100 text-indigo-700" },
-          ].map((feat, idx) => (
-            <div key={idx} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
-              <div className={`w-10 h-10 rounded-lg ${feat.color} flex items-center justify-center text-xl mb-3`}>
-                {feat.icon}
-              </div>
-              <h3 className="font-bold text-slate-900 text-sm">{feat.title}</h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">{feat.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Dark Navy Footer */}
-      <footer className="bg-slate-900 text-slate-400 text-xs py-12 border-t border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
-          <div className="col-span-2">
-            <span className="text-lg font-black text-white">ShikshaIQ</span>
-            <p className="mt-2 text-slate-400 max-w-sm leading-relaxed">
-              India's most trusted learning platform for competitive exams. Learn, Practice, and Rank Higher with us.
+            <h3 className="text-lg font-bold text-white">Live 1v1 Peer Battle Arena</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Challenge friends or random aspirants via WebSocket rooms. Watch live opponent progress bars advance question by question.
             </p>
+            <span className="text-xs font-bold text-rose-400 flex items-center gap-1 group-hover:translate-x-1 transition">
+              Start Duel <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
-          <div>
-            <h4 className="text-white font-bold mb-3">Quick Links</h4>
-            <ul className="space-y-2">
-              <li><Link to="/" className="hover:text-white">Home</Link></li>
-              <li><Link to="/test" className="hover:text-white">Test Series</Link></li>
-              <li><Link to="/dashboard" className="hover:text-white">Dashboard</Link></li>
-              <li><Link to="/admin" className="hover:text-white">Admin Panel</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-white font-bold mb-3">Top Exams</h4>
-            <ul className="space-y-2">
-              <li>SSC CGL / CHSL</li>
-              <li>Banking (IBPS, SBI)</li>
-              <li>Railway NTPC</li>
-              <li>UPSC CSE</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-white font-bold mb-3">Contact Us</h4>
-            <p className="leading-relaxed">Support & Query Helpline available 24/7.</p>
+
+          {/* Card 3 */}
+          <div
+            onClick={() => navigate('/mistakes')}
+            className="p-8 bg-slate-900/60 border border-slate-800/80 hover:border-amber-500/50 rounded-3xl space-y-4 transition duration-300 group cursor-pointer shadow-xl hover:shadow-amber-500/10"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white">Mistake Vault & Formula Bank</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Automatically captures failed test questions into a spaced-repetition vault with step-by-step shortcut derivations.
+            </p>
+            <span className="text-xs font-bold text-amber-400 flex items-center gap-1 group-hover:translate-x-1 transition">
+              View Vault <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
         </div>
-        <div className="max-w-6xl mx-auto px-4 pt-6 border-t border-slate-800 text-center text-slate-500">
-          © 2026 ShikshaIQ. All Rights Reserved.
+      </section>
+
+      {/* ---------------------------------------------------- */}
+      {/* FOOTER */}
+      {/* ---------------------------------------------------- */}
+      <footer className="mt-auto bg-slate-950 border-t border-slate-900 py-12 px-4 sm:px-8 text-center text-xs text-slate-500 space-y-3">
+        <div className="flex items-center justify-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>ShikshaIQ AI Engine Operational • Render & Vercel Cloud Native</span>
         </div>
+        <p>© 2026 ShikshaIQ Official. Built for Indian Competitive Exam Aspirants.</p>
       </footer>
     </div>
   );
-};
-
-export default Home;
+}

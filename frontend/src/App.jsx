@@ -9,6 +9,7 @@ import BattleMode from './BattleMode';
 import Home from './Home';
 import PwaInstallPrompt from './PwaInstallPrompt';
 import MistakeVault from './MistakeVault';
+import Home from './Home';
 
 
 // Code-Split Lazy Loaded Views (Loaded only when visited)
@@ -65,6 +66,7 @@ export default function App() {
               <Route path="/battle" element={<BattleMode />} />
               <Route path="/mistakes" element={<MistakeVault />} />
               <Route path="/battle/:code" element={<BattleMode />} />
+              <Route path="/" element={<Home />} />
 
 
               {/* Fallback */}
