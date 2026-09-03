@@ -311,7 +311,7 @@ async function getOrGenerate100DailyMock(exam = 'SSC CGL') {
   return saved;
 }
 
-// Scheduled Midnight Job (00:01 AM IST)
+// Scheduled Midnight Job (00:01 AM)
 cron.schedule('1 0 * * *', async () => {
   if (ai) {
     console.log('[Cron] Initiating midnight 100-question mock generation...');
@@ -503,7 +503,7 @@ app.put('/api/auth/profile', verifyToken, async (req, res) => {
   }
 });
 
-// Questions Routes
+// Single Question Endpoints
 app.get('/api/questions', async (req, res) => {
   try {
     const { exam, subject, difficulty, limit = 50 } = req.query;
@@ -560,6 +560,48 @@ app.post('/api/questions', async (req, res) => {
   }
 });
 
+// Bulk Question Import Endpoint
+app.post('/api/questions/bulk', async (req, res) => {
+  try {
+    const { questions } = req.body;
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payload must include a non-empty array of questions.'
+      });
+    }
+
+    const formattedQuestions = questions.map((q) => ({
+      exam: q.exam || 'SSC CGL',
+      subject: q.subject || 'Quantitative Aptitude',
+      topic: q.topic || 'General',
+      difficulty: q.difficulty || 'Moderate',
+      questionText: q.questionText,
+      options: Array.isArray(q.options) ? q.options : [q.optionA, q.optionB, q.optionC, q.optionD],
+      correctOptionIndex: Number(q.correctOptionIndex ?? 0),
+      marks: Number(q.marks || 2),
+      negativeMarks: Number(q.negativeMarks || 0.5),
+      explanation: q.explanation || 'Refer to standard derivation.',
+      year: Number(q.year || 2026)
+    }));
+
+    const inserted = await Question.insertMany(formattedQuestions, { ordered: false });
+
+    res.status(201).json({
+      success: true,
+      count: inserted.length,
+      message: `Successfully imported ${inserted.length} questions.`
+    });
+  } catch (error) {
+    console.error('Bulk question import error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to bulk import questions.'
+    });
+  }
+});
+
 app.delete('/api/questions/:id', async (req, res) => {
   try {
     await Question.findByIdAndDelete(req.params.id);
@@ -569,7 +611,7 @@ app.delete('/api/questions/:id', async (req, res) => {
   }
 });
 
-// Test Submission & Scoring Route
+// Test Submission & Evaluation Route
 app.post('/api/tests/submit', verifyToken, async (req, res) => {
   try {
     const { exam, answers, timeTakenSeconds } = req.body;
@@ -725,7 +767,7 @@ ${question || 'Solve the question shown in the attached image.'}`;
   }
 });
 
-// Study Plan Generator
+// AI Study Plan Generator
 app.post('/api/study-plan/generate', verifyToken, async (req, res) => {
   try {
     const { targetExam, weakSubjects, recentScore, accuracy } = req.body;
@@ -756,11 +798,11 @@ Return raw JSON only matching this schema:
     res.json({ success: true, plan: JSON.parse(cleanText) });
   } catch (error) {
     console.error('Study plan error:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate study plan.' });
+    res.status(500).json({ success: false, message: error.message || 'Failed to generate study plan.' });
   }
 });
 
-// Current Affairs & Jobs
+// Current Affairs & Government Job Feeds
 app.get('/api/current-affairs', async (req, res) => {
   try {
     const items = await CurrentAffair.find().sort({ createdAt: -1 }).limit(10);
