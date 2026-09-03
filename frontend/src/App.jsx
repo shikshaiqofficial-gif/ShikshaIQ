@@ -10,6 +10,7 @@ import Home from './Home';
 import PwaInstallPrompt from './PwaInstallPrompt';
 import MistakeVault from './MistakeVault';
 import Home from './Home';
+import FlashcardDeck from './FlashcardDeck';
 
 
 // Code-Split Lazy Loaded Views (Loaded only when visited)
@@ -23,6 +24,7 @@ const CurrentAffairs = lazy(() => import('./CurrentAffairs'));
 const JobAlerts = lazy(() => import('./JobAlerts'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const FormulaFlashcards = lazy(() => import('./FormulaFlashcards'));
+
 
 
 // Fallback Loading Component
@@ -67,6 +69,7 @@ export default function App() {
               <Route path="/mistakes" element={<MistakeVault />} />
               <Route path="/battle/:code" element={<BattleMode />} />
               <Route path="/" element={<Home />} />
+              <Route path="/flashcards" element={<FlashcardDeck />} />
 
 
               {/* Fallback */}

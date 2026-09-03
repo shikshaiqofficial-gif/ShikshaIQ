@@ -124,115 +124,132 @@ export default function Dashboard() {
                 <AlertTriangle className="w-4 h-4" /> Mistake Vault
               </button>
               <button
-                onClick={() => navigate('/custom-quiz')}
-                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-2 cursor-pointer"
+                onClick={() => navigate('/flashcards')}
+                className="px-5 py-2.5 bg-violet-600/90 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-violet-900/30 cursor-pointer"
               >
-                <Sliders className="w-4 h-4 text-indigo-400" /> Custom Topic Drill
+                <Sparkles className="w-4 h-4" /> AI Flashcards
               </button>
             </div>
           </div>
         </section>
 
         {/* Feature Action Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
           <button
             onClick={() => navigate('/mock-test')}
-            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+            className="p-4 bg-slate-900/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl text-left space-y-2.5 transition duration-200 group shadow-lg cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition">
-              <BookOpen className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition">
+              <BookOpen className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white group-hover:text-indigo-300 transition">
+              <h3 className="font-bold text-xs text-white group-hover:text-indigo-300 transition">
                 Daily 100 Mock
               </h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Full 60-minute, 200-mark CBT simulation with negative marking.
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                Full CBT simulation with negative marking.
               </p>
             </div>
           </button>
 
           <button
             onClick={() => navigate('/battle')}
-            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-rose-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+            className="p-4 bg-slate-900/80 border border-slate-800 hover:border-rose-500/60 rounded-2xl text-left space-y-2.5 transition duration-200 group shadow-lg cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-105 transition">
-              <Swords className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-105 transition">
+              <Swords className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white group-hover:text-rose-300 transition">
+              <h3 className="font-bold text-xs text-white group-hover:text-rose-300 transition">
                 1v1 Peer Battle
               </h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Live WebSocket duel. Watch opponent progress bars advance in real time.
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                Live WebSocket duel with progress sync.
               </p>
             </div>
           </button>
 
           <button
             onClick={() => navigate('/mistakes')}
-            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-amber-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+            className="p-4 bg-slate-900/80 border border-slate-800 hover:border-amber-500/60 rounded-2xl text-left space-y-2.5 transition duration-200 group shadow-lg cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition">
-              <AlertTriangle className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition">
+              <AlertTriangle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white group-hover:text-amber-300 transition">
+              <h3 className="font-bold text-xs text-white group-hover:text-amber-300 transition">
                 Mistake Vault
               </h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Review failed test questions with spaced repetition and instant shortcut derivations.
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                Spaced repetition review & shortcuts.
+              </p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate('/flashcards')}
+            className="p-4 bg-slate-900/80 border border-slate-800 hover:border-violet-500/60 rounded-2xl text-left space-y-2.5 transition duration-200 group shadow-lg cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-105 transition">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xs text-white group-hover:text-violet-300 transition">
+                AI Flashcards
+              </h3>
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                High-retention interactive flip decks.
               </p>
             </div>
           </button>
 
           <button
             onClick={() => navigate('/custom-quiz')}
-            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-cyan-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+            className="p-4 bg-slate-900/80 border border-slate-800 hover:border-cyan-500/60 rounded-2xl text-left space-y-2.5 transition duration-200 group shadow-lg cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition">
-              <Sliders className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition">
+              <Sliders className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white group-hover:text-cyan-300 transition">
+              <h3 className="font-bold text-xs text-white group-hover:text-cyan-300 transition">
                 Topic Drill
               </h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Select specific sections, question counts (10/25/50), and target difficulties.
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                Custom section & difficulty quizzes.
               </p>
             </div>
           </button>
 
           <button
             onClick={() => navigate('/doubts')}
-            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-emerald-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+            className="p-4 bg-slate-900/80 border border-slate-800 hover:border-emerald-500/60 rounded-2xl text-left space-y-2.5 transition duration-200 group shadow-lg cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition">
-              <HelpCircle className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition">
+              <HelpCircle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white group-hover:text-emerald-300 transition">
+              <h3 className="font-bold text-xs text-white group-hover:text-emerald-300 transition">
                 Doubt Solver
               </h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Upload geometry screenshots or formula questions for step-by-step tricks.
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                Multimodal AI math & diagram solver.
               </p>
             </div>
           </button>
 
           <button
             onClick={() => navigate('/admin')}
-            className="p-5 bg-slate-900/80 border border-slate-800 hover:border-purple-500/60 rounded-2xl text-left space-y-3 transition duration-200 group shadow-lg cursor-pointer"
+            className="p-4 bg-slate-900/80 border border-slate-800 hover:border-purple-500/60 rounded-2xl text-left space-y-2.5 transition duration-200 group shadow-lg cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-105 transition">
-              <Database className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-105 transition">
+              <Database className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white group-hover:text-purple-300 transition">
+              <h3 className="font-bold text-xs text-white group-hover:text-purple-300 transition">
                 Admin Portal
               </h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Import CSV or JSON question banks directly into the MongoDB collection.
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                Bulk JSON/CSV question bank imports.
               </p>
             </div>
           </button>
