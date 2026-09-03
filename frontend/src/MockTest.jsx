@@ -10,14 +10,15 @@ import {
   Volume2,
   VolumeX,
   RotateCcw,
-  Send,
   ChevronRight,
   ChevronLeft,
   Check,
   Award,
   Zap,
-  Timer,
-  BarChart3
+  BarChart3,
+  Loader2,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -31,23 +32,30 @@ const SECTIONS = [
 export default function MockTest() {
   const navigate = useNavigate();
 
-  // Test State
+  // Primary Exam Simulation State
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [status, setStatus] = useState({}); // 'visited', 'answered', 'marked'
-  const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes
+  const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes default
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('All');
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // Speed Tracking State
+  // Speed vs Accuracy Tracking
   const [questionTimes, setQuestionTimes] = useState({}); // { [questionId]: seconds }
   const lastSwitchTimeRef = useRef(Date.now());
 
-  // 1. Fetch Daily Mock Questions
+  // AI Trap Breaker Drill State
+  const [isDrillLoading, setIsDrillLoading] = useState(false);
+  const [drillQuestions, setDrillQuestions] = useState(null);
+  const [drillIndex, setDrillIndex] = useState(0);
+  const [drillAnswers, setDrillAnswers] = useState({});
+  const [drillSubmitted, setDrillSubmitted] = useState(false);
+
+  // 1. Fetch 100-Q Daily Mock Test
   useEffect(() => {
     const fetchMock = async () => {
       try {
@@ -57,7 +65,7 @@ export default function MockTest() {
           setQuestions(res.data.questions);
         }
       } catch (err) {
-        console.error('Failed to load mock:', err);
+        console.error('Failed to load daily mock questions:', err);
       } finally {
         setLoading(false);
         lastSwitchTimeRef.current = Date.now();
@@ -66,7 +74,7 @@ export default function MockTest() {
     fetchMock();
   }, []);
 
-  // 2. CBT Countdown Timer
+  // 2. Exam CBT Countdown Timer
   useEffect(() => {
     if (isSubmitted || loading) return;
     const timer = setInterval(() => {
@@ -82,7 +90,7 @@ export default function MockTest() {
     return () => clearInterval(timer);
   }, [isSubmitted, loading]);
 
-  // 3. Audio Cleanup on unmount
+  // 3. Clean up SpeechSynthesis on component unmount
   useEffect(() => {
     return () => {
       if ('speechSynthesis' in window) {
@@ -97,7 +105,7 @@ export default function MockTest() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Helper to record active seconds spent on current question before switching
+  // Record elapsed seconds spent actively on the current question
   const recordActiveQuestionTime = () => {
     const now = Date.now();
     const elapsed = Math.round((now - lastSwitchTimeRef.current) / 1000);
@@ -165,14 +173,46 @@ export default function MockTest() {
         setCurrentIndex(0);
       }
     } catch (err) {
-      alert('Submission failed. Check your network or login session.');
+      alert('Submission failed. Check your network or login credentials.');
     }
   };
 
-  // Web Speech API Voice Narrator
+  // Launch AI Trap Breaker Remedial Drill
+  const handleLaunchTrapBreaker = async () => {
+    if (!result || result.incorrect === 0) return;
+    setIsDrillLoading(true);
+
+    try {
+      // Extract mistake questions from the submitted exam
+      const mistakes = questions.filter((q) => {
+        const selected = answers[q._id];
+        return selected !== undefined && selected !== q.correctOptionIndex;
+      });
+
+      const res = await API.post('/study-plan/weakness-drill', {
+        mistakes,
+        targetExam: 'SSC CGL'
+      });
+
+      if (res.data?.drillQuestions?.length > 0) {
+        setDrillQuestions(res.data.drillQuestions);
+        setDrillIndex(0);
+        setDrillAnswers({});
+        setDrillSubmitted(false);
+      } else {
+        alert('Could not synthesize drill questions. Please retry.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to synthesize remedial drill.');
+    } finally {
+      setIsDrillLoading(false);
+    }
+  };
+
+  // Native Web Speech API Narrator
   const toggleSpeech = (text) => {
     if (!('speechSynthesis' in window)) {
-      alert('Text-to-speech is not supported in this browser.');
+      alert('Text-to-speech is not supported on this browser.');
       return;
     }
 
@@ -200,7 +240,7 @@ export default function MockTest() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center space-y-4">
         <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
         <p className="text-sm font-semibold text-slate-400">Synthesizing 100-Question Exam Simulation...</p>
       </div>
@@ -210,13 +250,13 @@ export default function MockTest() {
   const currentQ = questions[currentIndex];
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col select-none">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col select-none">
       {/* CBT Header */}
-      <header className="h-16 bg-slate-800/90 border-b border-slate-700/80 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
+      <header className="h-16 bg-slate-900/90 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700/50 transition cursor-pointer"
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -227,7 +267,7 @@ export default function MockTest() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl font-mono text-sm">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-sm">
             <Clock className="w-4 h-4 text-amber-400" />
             <span className={timeLeft < 300 ? 'text-rose-400 font-bold animate-pulse' : 'text-slate-200'}>
               {formatTime(timeLeft)}
@@ -245,180 +285,295 @@ export default function MockTest() {
         </div>
       </header>
 
-      {/* Main Workspace */}
+      {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Question Card & Solution */}
+        {/* Left Column: Question Card / Remedial Drill */}
         <div className="lg:col-span-8 space-y-4">
           {/* Sectional Switcher */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-            {SECTIONS.map((sec) => (
-              <button
-                key={sec}
-                onClick={() => {
-                  recordActiveQuestionTime();
-                  setActiveSection(sec);
-                  const firstMatch = questions.findIndex((q) => sec === 'All' || q.subject === sec);
-                  if (firstMatch !== -1) setCurrentIndex(firstMatch);
-                }}
-                className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition cursor-pointer ${
-                  activeSection === sec
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                {sec}
-              </button>
-            ))}
-          </div>
-
-          {/* Question Interface */}
-          <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 sm:p-6 space-y-6 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 text-xs">
-              <span className="font-bold text-indigo-400 uppercase tracking-wider">
-                Question {currentIndex + 1} of {questions.length} • {currentQ?.subject}
-              </span>
-              <span className="text-slate-400">
-                Marks: <strong className="text-emerald-400">+{currentQ?.marks || 2}</strong> / Negative:{' '}
-                <strong className="text-rose-400">-{currentQ?.negativeMarks || 0.5}</strong>
-              </span>
+          {!drillQuestions && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+              {SECTIONS.map((sec) => (
+                <button
+                  key={sec}
+                  onClick={() => {
+                    recordActiveQuestionTime();
+                    setActiveSection(sec);
+                    const firstMatch = questions.findIndex((q) => sec === 'All' || q.subject === sec);
+                    if (firstMatch !== -1) setCurrentIndex(firstMatch);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition cursor-pointer ${
+                    activeSection === sec
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40'
+                      : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  {sec}
+                </button>
+              ))}
             </div>
+          )}
 
-            <div className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed">
-              {currentQ?.questionText}
-            </div>
-
-            {/* Options */}
-            <div className="space-y-3">
-              {currentQ?.options?.map((opt, i) => {
-                const isSelected = answers[currentQ._id] === i;
-                const isCorrect = isSubmitted && currentQ.correctOptionIndex === i;
-                const isWrong = isSubmitted && isSelected && currentQ.correctOptionIndex !== i;
-
-                let borderStyle = 'border-slate-700 bg-slate-900/60 hover:border-slate-500';
-                if (isSelected && !isSubmitted) borderStyle = 'border-indigo-500 bg-indigo-600/10 text-white';
-                if (isCorrect) borderStyle = 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
-                if (isWrong) borderStyle = 'border-rose-500 bg-rose-500/10 text-rose-400';
-
-                return (
-                  <button
-                    key={i}
-                    onClick={() => handleSelectOption(i)}
-                    className={`w-full p-3.5 rounded-xl border text-xs sm:text-sm text-left flex items-center justify-between transition cursor-pointer ${borderStyle}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-slate-300 shrink-0">
-                        {String.fromCharCode(65 + i)}
-                      </span>
-                      <span>{opt}</span>
-                    </div>
-                    {isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-                    {isWrong && <XCircle className="w-4 h-4 text-rose-400 shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Post-Submit Review & Audio Explanation */}
-            {isSubmitted && (
-              <div className="p-4 bg-slate-900/90 border border-slate-700/80 rounded-xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
-                    <Check className="w-4 h-4" /> Explanation & Shortcut Derivation
+          {/* Trap Breaker Drill View */}
+          {drillQuestions ? (
+            <div className="bg-slate-900/90 border border-rose-500/30 rounded-2xl p-5 sm:p-6 space-y-6 shadow-2xl relative overflow-hidden">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-rose-500/20 text-rose-400 rounded-lg">
+                    <Zap className="w-4 h-4" />
                   </span>
+                  <span className="font-bold text-white uppercase tracking-wider">
+                    AI Trap Breaker Drill ({drillIndex + 1} of {drillQuestions.length})
+                  </span>
+                </div>
+                <button
+                  onClick={() => setDrillQuestions(null)}
+                  className="text-slate-400 hover:text-white text-xs underline cursor-pointer"
+                >
+                  Back to Full Mock Review
+                </button>
+              </div>
+
+              <div className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed">
+                {drillQuestions[drillIndex].questionText}
+              </div>
+
+              <div className="space-y-3">
+                {drillQuestions[drillIndex].options.map((opt, i) => {
+                  const isSelected = drillAnswers[drillIndex] === i;
+                  const isCorrect = drillSubmitted && drillQuestions[drillIndex].correctOptionIndex === i;
+                  const isWrong = drillSubmitted && isSelected && drillQuestions[drillIndex].correctOptionIndex !== i;
+
+                  let border = 'border-slate-800 bg-slate-950/60 hover:border-slate-700';
+                  if (isSelected && !drillSubmitted) border = 'border-rose-500 bg-rose-600/10 text-white';
+                  if (isCorrect) border = 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
+                  if (isWrong) border = 'border-rose-500 bg-rose-500/10 text-rose-400';
+
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => !drillSubmitted && setDrillAnswers({ ...drillAnswers, [drillIndex]: i })}
+                      className={`w-full p-3.5 rounded-xl border text-xs sm:text-sm text-left flex items-center justify-between transition cursor-pointer ${border}`}
+                    >
+                      <span>{String.fromCharCode(65 + i)}. {opt}</span>
+                      {isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                      {isWrong && <XCircle className="w-4 h-4 text-rose-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {drillSubmitted && (
+                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 font-mono space-y-1">
+                  <span className="text-emerald-400 font-bold block">Formula Shortcut & Derivation:</span>
+                  <p>{drillQuestions[drillIndex].explanation}</p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-800 text-xs">
+                <button
+                  onClick={() => setDrillIndex((p) => Math.max(0, p - 1))}
+                  disabled={drillIndex === 0}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 rounded-xl cursor-pointer"
+                >
+                  Previous
+                </button>
+
+                {!drillSubmitted ? (
                   <button
-                    onClick={() => toggleSpeech(currentQ?.explanation || '')}
-                    className="p-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                    onClick={() => setDrillSubmitted(true)}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl cursor-pointer"
                   >
-                    {isSpeaking ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
-                    <span>{isSpeaking ? 'Stop Audio' : 'Listen Solution'}</span>
+                    Check Drill Answers
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setDrillQuestions(null)}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl cursor-pointer"
+                  >
+                    Finish Drill
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setDrillIndex((p) => Math.min(drillQuestions.length - 1, p + 1))}
+                  disabled={drillIndex === drillQuestions.length - 1}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 rounded-xl cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Standard 100-Q Card */
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-6 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
+                <span className="font-bold text-indigo-400 uppercase tracking-wider">
+                  Question {currentIndex + 1} of {questions.length} • {currentQ?.subject}
+                </span>
+                <span className="text-slate-400 font-mono">
+                  Marks: <strong className="text-emerald-400">+{currentQ?.marks || 2}</strong> / Neg:{' '}
+                  <strong className="text-rose-400">-{currentQ?.negativeMarks || 0.5}</strong>
+                </span>
+              </div>
+
+              <div className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed">
+                {currentQ?.questionText}
+              </div>
+
+              {/* Options */}
+              <div className="space-y-3">
+                {currentQ?.options?.map((opt, i) => {
+                  const isSelected = answers[currentQ._id] === i;
+                  const isCorrect = isSubmitted && currentQ.correctOptionIndex === i;
+                  const isWrong = isSubmitted && isSelected && currentQ.correctOptionIndex !== i;
+
+                  let borderStyle = 'border-slate-800 bg-slate-950/60 hover:border-slate-700';
+                  if (isSelected && !isSubmitted) borderStyle = 'border-indigo-500 bg-indigo-600/10 text-white';
+                  if (isCorrect) borderStyle = 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
+                  if (isWrong) borderStyle = 'border-rose-500 bg-rose-500/10 text-rose-400';
+
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleSelectOption(i)}
+                      className={`w-full p-3.5 rounded-xl border text-xs sm:text-sm text-left flex items-center justify-between transition cursor-pointer ${borderStyle}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-slate-300 shrink-0">
+                          {String.fromCharCode(65 + i)}
+                        </span>
+                        <span>{opt}</span>
+                      </div>
+                      {isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                      {isWrong && <XCircle className="w-4 h-4 text-rose-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Post-Submit Review & Audio Explanation */}
+              {isSubmitted && (
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                      <Check className="w-4 h-4" /> Explanation & Shortcut Derivation
+                    </span>
+                    <button
+                      onClick={() => toggleSpeech(currentQ?.explanation || '')}
+                      className="p-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                    >
+                      {isSpeaking ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+                      <span>{isSpeaking ? 'Stop Audio' : 'Listen Solution'}</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line font-mono">
+                    {currentQ?.explanation}
+                  </p>
+                </div>
+              )}
+
+              {/* Navigation Controls */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-800 text-xs">
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleClear}
+                    disabled={isSubmitted}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition cursor-pointer"
+                  >
+                    Clear Response
+                  </button>
+                  <button
+                    onClick={handleMarkReview}
+                    disabled={isSubmitted}
+                    className="px-3 py-2 bg-purple-600/20 border border-purple-500/40 text-purple-300 hover:bg-purple-600/30 rounded-xl transition cursor-pointer"
+                  >
+                    Mark for Review
                   </button>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line font-mono">
-                  {currentQ?.explanation}
-                </p>
-              </div>
-            )}
 
-            {/* Controls */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-700/60 text-xs">
-              <div className="flex gap-2">
-                <button
-                  onClick={handleClear}
-                  disabled={isSubmitted}
-                  className="px-3 py-2 bg-slate-700/60 hover:bg-slate-700 text-slate-300 rounded-xl transition cursor-pointer"
-                >
-                  Clear Response
-                </button>
-                <button
-                  onClick={handleMarkReview}
-                  disabled={isSubmitted}
-                  className="px-3 py-2 bg-purple-600/20 border border-purple-500/40 text-purple-300 hover:bg-purple-600/30 rounded-xl transition cursor-pointer"
-                >
-                  Mark for Review
-                </button>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleNavigateQuestion(Math.max(0, currentIndex - 1))}
-                  disabled={currentIndex === 0}
-                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-30 rounded-xl transition flex items-center gap-1 cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" /> Prev
-                </button>
-                <button
-                  onClick={() => handleNavigateQuestion(Math.min(questions.length - 1, currentIndex + 1))}
-                  disabled={currentIndex === questions.length - 1}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white font-bold rounded-xl transition flex items-center gap-1 cursor-pointer"
-                >
-                  Next <ChevronRight className="w-4 h-4" />
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleNavigateQuestion(Math.max(0, currentIndex - 1))}
+                    disabled={currentIndex === 0}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 rounded-xl transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Prev
+                  </button>
+                  <button
+                    onClick={() => handleNavigateQuestion(Math.min(questions.length - 1, currentIndex + 1))}
+                    disabled={currentIndex === questions.length - 1}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white font-bold rounded-xl transition flex items-center gap-1 cursor-pointer"
+                  >
+                    Next <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Right Column: Scorecard, Speed vs. Accuracy Matrix & Palette */}
+        {/* Right Column: Scorecard, Speed vs Accuracy & Palette */}
         <div className="lg:col-span-4 space-y-4">
           {/* Post-Submission Scorecard */}
           {isSubmitted && result && (
-            <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-700">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
                 <Award className="w-5 h-5 text-amber-400" />
                 <h3 className="font-bold text-sm text-white">Performance Scorecard</h3>
               </div>
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 bg-slate-900/80 rounded-xl">
+                <div className="p-3 bg-slate-950 rounded-xl">
                   <span className="text-slate-400 block">Final Score</span>
                   <span className="text-lg font-black text-white font-mono">
                     {result.score} / {result.totalMarks}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl">
+                <div className="p-3 bg-slate-950 rounded-xl">
                   <span className="text-slate-400 block">Accuracy</span>
                   <span className="text-lg font-black text-emerald-400 font-mono">{result.accuracy}%</span>
                 </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl">
+                <div className="p-3 bg-slate-950 rounded-xl">
                   <span className="text-slate-400 block">Correct</span>
                   <span className="text-sm font-bold text-emerald-400 font-mono">{result.correct} Qs</span>
                 </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl">
+                <div className="p-3 bg-slate-950 rounded-xl">
                   <span className="text-slate-400 block">Negative Lost</span>
                   <span className="text-sm font-bold text-rose-400 font-mono">-{result.incorrect * 0.5}</span>
                 </div>
               </div>
+
+              {/* AI Remedial Trigger Button */}
+              {result.incorrect > 0 && !drillQuestions && (
+                <button
+                  onClick={handleLaunchTrapBreaker}
+                  disabled={isDrillLoading}
+                  className="w-full py-2.5 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-rose-900/30 cursor-pointer"
+                >
+                  {isDrillLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Synthesizing Remedial Drill...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      <span>Break {result.incorrect} Concept Traps with AI</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           )}
 
           {/* Speed vs Accuracy Matrix */}
           {isSubmitted && result?.questionAnalytics && (
-            <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 space-y-3 shadow-xl">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-700">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 shadow-xl">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
                 <BarChart3 className="w-5 h-5 text-indigo-400" />
                 <h3 className="font-bold text-sm text-white">Speed vs. Accuracy Matrix</h3>
               </div>
 
-              <div className="grid grid-cols-3 gap-2.5 text-center text-xs">
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
                   <span className="text-emerald-400 font-bold block text-base font-mono">
                     {result.questionAnalytics.filter((q) => q.isCorrect && q.timeSpentSeconds < 45).length}
@@ -443,52 +598,54 @@ export default function MockTest() {
             </div>
           )}
 
-          {/* Question Palette */}
-          <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
-            <h3 className="font-bold text-xs text-white uppercase tracking-wider pb-2 border-b border-slate-700">
-              Question Palette ({filteredQuestionIndices.length} Questions)
-            </h3>
+          {/* Question Status Palette */}
+          {!drillQuestions && (
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+              <h3 className="font-bold text-xs text-white uppercase tracking-wider pb-2 border-b border-slate-800">
+                Question Palette ({filteredQuestionIndices.length} Questions)
+              </h3>
 
-            <div className="grid grid-cols-5 gap-2 max-h-72 overflow-y-auto pr-1">
-              {filteredQuestionIndices.map((idx) => {
-                const qId = questions[idx]._id;
-                const isAnswered = answers[qId] !== undefined;
-                const isMarked = status[idx] === 'marked';
-                const isCurrent = currentIndex === idx;
+              <div className="grid grid-cols-5 gap-2 max-h-72 overflow-y-auto pr-1">
+                {filteredQuestionIndices.map((idx) => {
+                  const qId = questions[idx]._id;
+                  const isAnswered = answers[qId] !== undefined;
+                  const isMarked = status[idx] === 'marked';
+                  const isCurrent = currentIndex === idx;
 
-                let colorClass = 'bg-slate-700 text-slate-300';
-                if (isAnswered) colorClass = 'bg-emerald-600 text-white';
-                if (isMarked) colorClass = 'bg-purple-600 text-white';
-                if (isCurrent) colorClass += ' ring-2 ring-indigo-400';
+                  let colorClass = 'bg-slate-800 text-slate-300';
+                  if (isAnswered) colorClass = 'bg-emerald-600 text-white';
+                  if (isMarked) colorClass = 'bg-purple-600 text-white';
+                  if (isCurrent) colorClass += ' ring-2 ring-indigo-400';
 
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleNavigateQuestion(idx)}
-                    className={`h-9 rounded-lg font-mono text-xs font-bold transition cursor-pointer flex items-center justify-center ${colorClass}`}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleNavigateQuestion(idx)}
+                      className={`h-9 rounded-lg font-mono text-xs font-bold transition cursor-pointer flex items-center justify-center ${colorClass}`}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Palette Legend */}
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-emerald-600"></span> Answered
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-purple-600"></span> Marked
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-slate-800"></span> Unvisited
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded border border-indigo-400"></span> Current
+                </div>
+              </div>
             </div>
-
-            {/* Legend */}
-            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400 pt-2 border-t border-slate-700">
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-emerald-600"></span> Answered
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-purple-600"></span> Marked
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-slate-700"></span> Unvisited
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded border border-indigo-400"></span> Current
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </main>
     </div>
