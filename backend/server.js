@@ -102,7 +102,7 @@ dailyMockSchema.index({ dateKey: 1, exam: 1 }, { unique: true });
 const DailyMock = mongoose.models.DailyMock || mongoose.model('DailyMock', dailyMockSchema);
 
 const testSubmissionSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   userName: { type: String, required: true },
   exam: { type: String, required: true },
   totalQuestions: { type: Number, required: true },
@@ -138,7 +138,7 @@ const challengeSchema = new mongoose.Schema({
     explanation: String
   }],
   creator: {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     name: { type: String, required: true },
     score: { type: Number, default: null },
     accuracy: { type: Number, default: null },
@@ -767,22 +767,84 @@ app.delete('/api/questions/:id', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// 1V1 PEER BATTLE ENDPOINTS
+// 1V1 PEER BATTLE ENDPOINTS (RESILIENT GUEST & AUTH)
 // ----------------------------------------------------
 
 // 1. Create a 1v1 Challenge
-app.post('/api/challenges/create', verifyToken, async (req, res) => {
+app.post('/api/challenges/create', async (req, res) => {
   try {
     const { subject = 'All' } = req.body;
-    const matchStage = subject && subject !== 'All' ? { subject } : {};
+
+    // Optional user token extraction
+    let userId = null;
+    let userName = 'Challenger Aspirant';
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        userId = decoded.id;
+        userName = decoded.name || userName;
+      } catch (e) {
+        // Continue as guest if token is invalid or expired
+      }
+    }
+
+    const matchStage = (subject && subject !== 'All') ? { subject } : {};
 
     let sampledQuestions = await Question.aggregate([
       { $match: matchStage },
       { $sample: { size: 10 } }
     ]);
 
-    if (sampledQuestions.length < 10) {
+    if (!sampledQuestions || sampledQuestions.length < 10) {
       sampledQuestions = await Question.aggregate([{ $sample: { size: 10 } }]);
+    }
+
+    // Emergency seed fallback if database is empty
+    if (!sampledQuestions || sampledQuestions.length === 0) {
+      sampledQuestions = [
+        {
+          _id: 'seed_q1',
+          subject: 'Quantitative Aptitude',
+          questionText: 'If x + 1/x = 5, what is the value of x² + 1/x²?',
+          options: ['23', '25', '27', '21'],
+          correctOptionIndex: 0,
+          marks: 2,
+          negativeMarks: 0.5,
+          explanation: 'x² + 1/x² = 5² - 2 = 23.'
+        },
+        {
+          _id: 'seed_q2',
+          subject: 'General Intelligence & Reasoning',
+          questionText: 'Find the next term in the series: 2, 5, 10, 17, 26, ?',
+          options: ['37', '35', '39', '41'],
+          correctOptionIndex: 0,
+          marks: 2,
+          negativeMarks: 0.5,
+          explanation: 'Series pattern: n² + 1. For n=6, 6² + 1 = 37.'
+        },
+        {
+          _id: 'seed_q3',
+          subject: 'General Awareness',
+          questionText: 'Who was the founder of the Maurya Empire in ancient India?',
+          options: ['Chandragupta Maurya', 'Ashoka', 'Bindusara', 'Brihadratha'],
+          correctOptionIndex: 0,
+          marks: 2,
+          negativeMarks: 0.5,
+          explanation: 'Chandragupta Maurya founded the empire with the help of Chanakya.'
+        },
+        {
+          _id: 'seed_q4',
+          subject: 'English Comprehension',
+          questionText: 'Select the synonym of the given word: CANDID',
+          options: ['Frank', 'Deceitful', 'Shy', 'Arrogant'],
+          correctOptionIndex: 0,
+          marks: 2,
+          negativeMarks: 0.5,
+          explanation: 'Candid means truthful and straightforward; frank.'
+        }
+      ];
     }
 
     const challengeCode = 'BATTLE-' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -792,8 +854,8 @@ app.post('/api/challenges/create', verifyToken, async (req, res) => {
       subject,
       questions: sampledQuestions,
       creator: {
-        userId: req.user.id,
-        name: req.user.name || 'Challenger'
+        userId,
+        name: userName
       },
       status: 'waiting'
     });
@@ -801,7 +863,7 @@ app.post('/api/challenges/create', verifyToken, async (req, res) => {
     res.status(201).json({ success: true, challenge: newChallenge });
   } catch (err) {
     console.error('Challenge creation error:', err);
-    res.status(500).json({ success: false, message: 'Failed to create battle.' });
+    res.status(500).json({ success: false, message: err.message || 'Failed to create battle.' });
   }
 });
 
@@ -819,13 +881,25 @@ app.get('/api/challenges/:code', async (req, res) => {
 });
 
 // 3. Submit Challenge Attempt
-app.post('/api/challenges/:code/submit', verifyToken, async (req, res) => {
+app.post('/api/challenges/:code/submit', async (req, res) => {
   try {
     const { answers, timeTakenSeconds } = req.body;
     const challenge = await Challenge.findOne({ challengeCode: req.params.code });
 
     if (!challenge) {
       return res.status(404).json({ success: false, message: 'Battle not found.' });
+    }
+
+    // Optional user token identification
+    let currentUserId = null;
+    let currentUserName = 'Gladiator Peer';
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        currentUserId = decoded.id;
+        currentUserName = decoded.name || currentUserName;
+      } catch (e) {}
     }
 
     let correct = 0;
@@ -848,7 +922,10 @@ app.post('/api/challenges/:code/submit', verifyToken, async (req, res) => {
     const attempted = correct + incorrect;
     const finalScore = Math.max(0, parseFloat(score.toFixed(2)));
     const accuracy = attempted > 0 ? parseFloat(((correct / attempted) * 100).toFixed(1)) : 0;
-    const isCreator = challenge.creator.userId?.toString() === req.user.id;
+
+    const isCreator = challenge.creator.userId && currentUserId 
+      ? challenge.creator.userId.toString() === currentUserId.toString()
+      : challenge.creator.submittedAt === null;
 
     if (isCreator) {
       challenge.creator.score = finalScore;
@@ -856,8 +933,8 @@ app.post('/api/challenges/:code/submit', verifyToken, async (req, res) => {
       challenge.creator.timeTakenSeconds = timeTakenSeconds;
       challenge.creator.submittedAt = new Date();
     } else {
-      challenge.opponent.userId = req.user.id;
-      challenge.opponent.name = req.user.name || 'Challenger Peer';
+      challenge.opponent.userId = currentUserId;
+      challenge.opponent.name = currentUserName;
       challenge.opponent.score = finalScore;
       challenge.opponent.accuracy = accuracy;
       challenge.opponent.timeTakenSeconds = timeTakenSeconds;
@@ -892,12 +969,23 @@ app.post('/api/challenges/:code/submit', verifyToken, async (req, res) => {
 });
 
 // Test Submission & Speed-Accuracy Scoring Route
-app.post('/api/tests/submit', verifyToken, async (req, res) => {
+app.post('/api/tests/submit', async (req, res) => {
   try {
     const { exam, answers, timeTakenSeconds } = req.body;
 
     if (!Array.isArray(answers)) {
       return res.status(400).json({ success: false, message: 'Invalid submission answers format.' });
+    }
+
+    let userId = null;
+    let userName = 'Candidate';
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        userId = decoded.id;
+        userName = decoded.name || userName;
+      } catch (e) {}
     }
 
     const questionIds = answers.map(a => a.questionId);
@@ -957,8 +1045,8 @@ app.post('/api/tests/submit', verifyToken, async (req, res) => {
     const accuracy = attempted > 0 ? parseFloat(((correct / attempted) * 100).toFixed(1)) : 0;
 
     const submission = await TestSubmission.create({
-      userId: req.user.id,
-      userName: req.user.name || 'Candidate',
+      userId,
+      userName,
       exam: exam || 'SSC 100-Q Daily Mock',
       totalQuestions: answers.length,
       attempted,
@@ -1061,7 +1149,7 @@ ${question || 'Solve the question shown in the attached image.'}`;
 });
 
 // AI Adaptive Weakness Drill Generator (Trap Breaker)
-app.post('/api/study-plan/weakness-drill', verifyToken, async (req, res) => {
+app.post('/api/study-plan/weakness-drill', async (req, res) => {
   try {
     const { mistakes, targetExam = 'SSC CGL' } = req.body;
 
@@ -1121,7 +1209,7 @@ Return strictly raw JSON. Do NOT include backticks or markdown fences.`;
 });
 
 // AI Smart Flashcard Deck Generator from Mistakes
-app.post('/api/study-plan/flashcards', verifyToken, async (req, res) => {
+app.post('/api/study-plan/flashcards', async (req, res) => {
   try {
     const { mistakes, targetExam = 'SSC CGL' } = req.body;
 
@@ -1185,8 +1273,8 @@ Return strictly raw JSON. Do NOT include markdown code blocks, backticks, or ext
   }
 });
 
-// Category Cut-Off Predictor & Score Normalizer
-app.post('/api/analytics/cutoff-predictor',async (req, res) => {
+// Category Cut-Off Predictor & Score Normalizer (Public)
+app.post('/api/analytics/cutoff-predictor', async (req, res) => {
   try {
     const { rawScore, exam = 'SSC CGL', category = 'UR' } = req.body;
     const score = parseFloat(rawScore) || 0;
