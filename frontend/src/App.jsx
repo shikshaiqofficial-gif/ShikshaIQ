@@ -16,6 +16,8 @@ const FlashcardDeck = lazy(() => import("./FlashcardDeck"));
 const DoubtSolver = lazy(() => import("./DoubtSolver"));
 const AnalyticsHub = lazy(() => import("./AnalyticsHub"));
 const AdminPanel = lazy(() => import("./AdminPanel"));
+const LiveClasses = lazy(() => import("./LiveClasses"));
+const CurrentAffairs = lazy(() => import("./CurrentAffairs"));
 
 // Loading component
 const LoadingFallback = () => (
@@ -26,7 +28,7 @@ const LoadingFallback = () => (
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           {/* Public */}
@@ -43,6 +45,8 @@ export default function App() {
           <Route path="/flashcards" element={<FlashcardDeck />} />
           <Route path="/doubts" element={<DoubtSolver />} />
           <Route path="/analytics" element={<AnalyticsHub />} />
+          <Route path="/live-classes" element={<LiveClasses />} />
+          <Route path="/current-affairs" element={<CurrentAffairs />} /> {/* <-- Route registered here */}
 
           {/* Admin */}
           <Route path="/admin" element={<AdminPanel />} />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Assuming you use axios for API calls
+import axios from 'axios';
+import Logo from './components/Logo'; // Integrated official logo component
 import {
   LayoutDashboard,
   Zap,
@@ -16,7 +17,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-// Lazy load secondary components to keep initial bundle small
+// Lazy load secondary components for high performance
 const QuickStats = lazy(() => import('./components/Dashboard/QuickStats'));
 
 // --- Safe Fallback UI components ---
@@ -35,7 +36,6 @@ const DataLoading = () => (
   </div>
 );
 
-
 export default function Dashboard() {
   const navigate = useNavigate();
   
@@ -43,30 +43,26 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Dashboard data states (initialized as null or empty array)
   const [stats, setStats] = useState(null);
-  const [jobAlerts, setJobAlerts] = useState([]); // Critical fix: initialize as empty array
+  const [jobAlerts, setJobAlerts] = useState([]); // Initialized as empty array to prevent crashes
   const [recentActivity, setRecentActivity] = useState([]);
 
-  // --- Data Fetching (Simulated API calls) ---
+  // --- Data Fetching ---
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Replace these endpoints with your actual backend routes
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        // Fetch all data concurrently for better performance
         const [statsRes, jobsRes, activityRes] = await Promise.all([
-          axios.get('/api/dashboard/stats', config).catch(() => ({ data: null })), // Catch individual errors
+          axios.get('/api/dashboard/stats', config).catch(() => ({ data: null })),
           axios.get('/api/dashboard/jobs', config).catch(() => ({ data: [] })),
           axios.get('/api/dashboard/activity', config).catch(() => ({ data: [] }))
         ]);
 
         setStats(statsRes.data);
-        // Ensure data is an array before setting state, fallback to empty array if null/undefined
         setJobAlerts(Array.isArray(jobsRes.data) ? jobsRes.data : []);
         setRecentActivity(Array.isArray(activityRes.data) ? activityRes.data : []);
 
@@ -81,9 +77,7 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
-
-  // --- Helper Components tailored for Dashboard display ---
-
+  // --- Helper Components ---
   const JobAlertCard = ({ job }) => (
     <div className="p-5 bg-[#0b132b] rounded-2xl border border-slate-800 flex items-start gap-4 hover:border-indigo-900 transition group">
       <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 group-hover:scale-105 transition">
@@ -134,17 +128,12 @@ export default function Dashboard() {
     );
   };
 
-
-  // --- Main Render ---
-
   return (
     <div className="min-h-screen bg-[#070b19] text-slate-100 flex font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Sidebar Navigation (simplified for this example) */}
+      {/* Sidebar Navigation */}
       <aside className="w-64 bg-[#070b19] border-r border-slate-800 p-6 flex flex-col gap-10 sticky top-0 h-screen">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-rose-500 flex items-center justify-center font-black text-white shadow-lg">S</div>
-          <span className="font-extrabold text-base text-white">ShikshaIQ <span className="text-[9px] text-indigo-400">Dashboard</span></span>
-        </div>
+        {/* Official Logo Integration */}
+        <Logo size="md" />
 
         <nav className="flex flex-col gap-2 grow">
           {[
@@ -193,22 +182,21 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* Error State Handling */}
+        {/* Error State */}
         {error && <DataError message={error} />}
 
         {/* Dashboard Grid */}
         {!error && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Left Column: Quick Stats & Main Actions */}
+            {/* Left Column */}
             <div className="xl:col-span-2 space-y-8">
               <Suspense fallback={<DataLoading />}>
-                {/* Pass stats data safely using optional chaining */}
                 <QuickStats stats={stats} isLoading={loading} />
               </Suspense>
 
-              {/* Quick Actions Section */}
+              {/* Quick Actions */}
               <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button onClick={() => navigate('/mock-test')} className="p-8 bg-gradient-to-r from-indigo-600/80 to-indigo-900/80 rounded-3xl text-left space-y-3 shadow-lg shadow-indigo-900/20 hover:scale-[1.02] transition group border border-indigo-500/30">
+                <button onClick={() => navigate('/mock-test')} className="p-8 bg-gradient-to-r from-indigo-600/80 to-indigo-900/80 rounded-3xl text-left space-y-3 shadow-lg shadow-indigo-900/20 hover:scale-[1.02] transition group border border-indigo-500/30 relative">
                   <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white backdrop-blur-sm">
                     <Zap className="w-7 h-7" />
                   </div>
@@ -216,7 +204,7 @@ export default function Dashboard() {
                   <p className="text-sm text-indigo-100 opacity-90">Full 100-Q simulation. Time yourself against the clock.</p>
                   <ArrowRight className="w-5 h-5 text-white absolute top-6 right-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
                 </button>
-                <button onClick={() => navigate('/battle')} className="p-8 bg-gradient-to-r from-rose-600/80 to-rose-900/80 rounded-3xl text-left space-y-3 shadow-lg shadow-rose-900/20 hover:scale-[1.02] transition group border border-rose-500/30">
+                <button onClick={() => navigate('/battle')} className="p-8 bg-gradient-to-r from-rose-600/80 to-rose-900/80 rounded-3xl text-left space-y-3 shadow-lg shadow-rose-900/20 hover:scale-[1.02] transition group border border-rose-500/30 relative">
                   <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white backdrop-blur-sm">
                     <Swords className="w-7 h-7" />
                   </div>
@@ -227,9 +215,9 @@ export default function Dashboard() {
               </section>
             </div>
 
-            {/* Right Column: Job Alerts & Activity */}
+            {/* Right Column */}
             <div className="space-y-8">
-              {/* --- JOB ALERTS SECTION (SAFE RENDER IMPLEMENTED) --- */}
+              {/* Job Alerts (Safe Render) */}
               <section className="p-6 bg-[#080c1e] rounded-3xl border border-slate-800 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2.5">
@@ -239,11 +227,9 @@ export default function Dashboard() {
                   <button onClick={() => navigate('/dashboard')} className="text-xs text-indigo-400 hover:underline font-semibold">View All</button>
                 </div>
 
-                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                  {/* 1. LOADER STATE */}
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                   {loading && <DataLoading />}
 
-                  {/* 2. EMPTY STATE */}
                   {!loading && (!jobAlerts || jobAlerts.length === 0) && (
                     <div className="text-center py-8 px-4 bg-[#0b132b] rounded-2xl border border-dashed border-slate-700">
                         <Bell className='w-10 h-10 text-slate-700 mx-auto mb-3' />
@@ -252,18 +238,15 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {/* 3. SAFE DATA MAPPING */}
-                  {/* Use optional chaining (?.map) and ensure jobAlerts is initialized as [] */}
                   {!loading && jobAlerts?.length > 0 && (
                     jobAlerts.map((job) => (
-                      // Pass individual job object safely. The component handles missing fields.
                       <JobAlertCard key={job?.id || crypto.randomUUID()} job={job} />
                     ))
                   )}
                 </div>
               </section>
 
-              {/* Recent Activity Section */}
+              {/* Recent Activity */}
               <section className="p-6 bg-[#080c1e] rounded-3xl border border-slate-800 shadow-xl">
                 <h3 className="text-lg font-extrabold text-white tracking-tight mb-4">Your Recent Activity</h3>
                 <div className="flow-root">
@@ -284,3 +267,8 @@ export default function Dashboard() {
   );
 }
 
+const ArrowRight = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+  </svg>
+);
