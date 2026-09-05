@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from "./Home";
 import Login from "./Login";
 import Register from "./Register";
+import StudentProfile from "./StudentProfile";
 
 // Protected (Lazy loaded)
 const Dashboard = lazy(() => import("./Dashboard"));
@@ -19,6 +20,7 @@ const AdminPanel = lazy(() => import("./AdminPanel"));
 const LiveClasses = lazy(() => import("./LiveClasses"));
 const CurrentAffairs = lazy(() => import("./CurrentAffairs"));
 const JobAlerts = lazy(() => import("./JobAlerts")); // <--- Added JobAlerts import
+
 
 // Loading component
 const LoadingFallback = () => (
@@ -49,6 +51,7 @@ export default function App() {
           <Route path="/live-classes" element={<LiveClasses />} />
           <Route path="/current-affairs" element={<CurrentAffairs />} />
           <Route path="/jobs" element={<JobAlerts />} /> {/* <-- Route registered here */}
+          <Route path="/profile" element={<StudentProfile />} />
 
           {/* Admin */}
           <Route path="/admin" element={<AdminPanel />} />

@@ -47,6 +47,17 @@ export default function JobAlerts() {
     }
   };
 
+  // Helper to sanitize and format external URLs correctly
+  const formatExternalUrl = (url) => {
+    if (!url) return '#';
+    // Remove markdown brackets if Gemini returned them (e.g. [https://url](https://url) -> https://url)
+    let clean = url.replace(/$$([^)]+)$$$(.*?)$$/, '$2').replace(/^$$|$$$/g, '').trim();
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+      clean = 'https://' + clean;
+    }
+    return clean;
+  };
+
   const filteredJobs = jobs.filter((j) => {
     const titleMatch = j.title?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
     const orgMatch = j.organization?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
@@ -194,7 +205,7 @@ export default function JobAlerts() {
                   <div>
                     {job.applyUrl && (
                       <a
-                        href={job.applyUrl}
+                        href={formatExternalUrl(job.applyUrl)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white rounded-xl transition flex items-center gap-1.5 text-xs font-bold shadow-lg shadow-orange-500/20 cursor-pointer"

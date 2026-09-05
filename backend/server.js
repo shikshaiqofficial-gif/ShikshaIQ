@@ -57,9 +57,16 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
   targetExam: { type: String, default: 'SSC CGL' },
-  role: { type: String, enum: ['student', 'admin'], default: 'student' }
+  role: { type: String, enum: ['student', 'admin'], default: 'student' },
+  // --- New Student Profile Fields ---
+  photoUrl: { type: String, default: '' },
+  fatherName: { type: String, default: '' },
+  motherName: { type: String, default: '' },
+  dob: { type: String, default: '' },
+  qualification: { type: String, default: 'Graduate' },
+  preparationFor: { type: String, default: 'SSC CGL & Banking' },
+  address: { type: String, default: '' }
 }, { timestamps: true });
-
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 const questionSchema = new mongoose.Schema({
@@ -730,12 +737,19 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
 
 app.put('/api/auth/profile', verifyToken, async (req, res) => {
   try {
-    const { name, targetExam } = req.body;
+    const { name, targetExam, photoUrl, fatherName, motherName, dob, qualification, preparationFor, address } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
     if (name) user.name = name.trim();
     if (targetExam) user.targetExam = targetExam;
+    if (photoUrl !== undefined) user.photoUrl = photoUrl;
+    if (fatherName !== undefined) user.fatherName = fatherName.trim();
+    if (motherName !== undefined) user.motherName = motherName.trim();
+    if (dob !== undefined) user.dob = dob;
+    if (qualification !== undefined) user.qualification = qualification;
+    if (preparationFor !== undefined) user.preparationFor = preparationFor;
+    if (address !== undefined) user.address = address.trim();
 
     await user.save();
 
@@ -745,7 +759,14 @@ app.put('/api/auth/profile', verifyToken, async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        targetExam: user.targetExam
+        targetExam: user.targetExam,
+        photoUrl: user.photoUrl,
+        fatherName: user.fatherName,
+        motherName: user.motherName,
+        dob: user.dob,
+        qualification: user.qualification,
+        preparationFor: user.preparationFor,
+        address: user.address
       }
     });
   } catch (error) {
@@ -753,6 +774,7 @@ app.put('/api/auth/profile', verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to update user profile.' });
   }
 });
+  
 
 // Single Question Endpoints
 app.get('/api/questions', async (req, res) => {

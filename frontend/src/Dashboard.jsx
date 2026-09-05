@@ -15,7 +15,8 @@ import {
   XCircle,
   Loader2,
   ChevronRight,
-  Briefcase
+  Briefcase,
+  User
 } from 'lucide-react';
 
 // Lazy load secondary components for high performance
@@ -45,6 +46,7 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   
   const [stats, setStats] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [jobAlerts, setJobAlerts] = useState([]); // Initialized as empty array to prevent crashes
   const [recentActivity, setRecentActivity] = useState([]);
 
@@ -57,13 +59,16 @@ export default function Dashboard() {
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        const [statsRes, jobsRes, activityRes] = await Promise.all([
+        const [statsRes, jobsRes, activityRes, userRes] = await Promise.all([
           axios.get('/api/dashboard/stats', config).catch(() => ({ data: null })),
           axios.get('/api/jobs', config).catch(() => ({ data: { jobs: [] } })),
-          axios.get('/api/dashboard/activity', config).catch(() => ({ data: [] }))
+          axios.get('/api/dashboard/activity', config).catch(() => ({ data: [] })),
+          axios.get('/api/auth/me', config).catch(() => ({ data: null }))
         ]);
 
         setStats(statsRes.data);
+        setCurrentUser(userRes.data?.user || null);
+        
         // Safely extract jobs array from the backend response structure
         const jobsList = jobsRes.data?.jobs || jobsRes.data;
         setJobAlerts(Array.isArray(jobsList) ? jobsList : []);
@@ -94,7 +99,6 @@ export default function Dashboard() {
         <p className="text-xs text-slate-400">{job?.organization || job?.examAgency || 'Organization'} • {job?.vacancies || 'Various'}</p>
         <p className="text-xs text-slate-500 line-clamp-1 pt-1">{job?.qualification || job?.description || 'Details pending update...'}</p>
         
-        {/* Fixed: Opens official applyUrl in a new tab instead of routing to dashboard */}
         {(job?.applyUrl || job?.applyLink) && (
           <a
             href={job.applyUrl || job.applyLink}
@@ -137,7 +141,6 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#070b19] text-slate-100 flex font-sans selection:bg-indigo-500 selection:text-white">
       {/* Sidebar Navigation */}
       <aside className="w-64 bg-[#070b19] border-r border-slate-800 p-6 flex flex-col gap-10 sticky top-0 h-screen">
-        {/* Official Logo Integration */}
         <Logo size="md" />
 
         <nav className="flex flex-col gap-2 grow">
@@ -146,6 +149,7 @@ export default function Dashboard() {
             { name: 'Mock Tests', icon: Zap, path: '/mock-test' },
             { name: 'Live Battles', icon: Swords, path: '/battle' },
             { name: 'Govt Jobs', icon: Briefcase, path: '/jobs' },
+            { name: 'Candidate Profile', icon: User, path: '/profile' },
             { name: 'Analytics', icon: BarChart3, path: '/analytics' },
             { name: 'Mistake Vault', icon: AlertTriangle, path: '/mistakes' },
           ].map((item) => (
@@ -170,19 +174,32 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-white tracking-tight">Welcome back, Aspirant! 👋</h1>
-            <p className="text-sm text-slate-400">Here is your daily command center for SSC/Banking prep.</p>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Welcome back, {currentUser?.name || 'Aspirant'}! 👋
+            </h1>
+            <p className="text-sm text-slate-400">
+              Target Exam: <strong className="text-indigo-400">{currentUser?.targetExam || 'SSC CGL'}</strong>
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <button className="p-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 relative cursor-pointer">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500"></span>
             </button>
-            <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-800">
-                <UserCircle className="w-8 h-8 text-indigo-400" />
+            
+            {/* Clickable Profile Badge */}
+            <div 
+              onClick={() => navigate('/profile')} 
+              className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 transition cursor-pointer border border-slate-700/60"
+            >
+                {currentUser?.photoUrl ? (
+                  <img src={currentUser.photoUrl} alt="Candidate" className="w-8 h-8 rounded-full object-cover border border-indigo-500" />
+                ) : (
+                  <UserCircle className="w-8 h-8 text-indigo-400" />
+                )}
                 <div>
-                    <p className='text-sm font-semibold text-white'>Rahul Sharma</p>
-                    <p className='text-[10px] text-slate-400'>Free Tier</p>
+                    <p className='text-sm font-semibold text-white'>{currentUser?.name || 'Aspirant'}</p>
+                    <p className='text-[10px] text-indigo-300 hover:underline'>Edit Profile →</p>
                 </div>
             </div>
           </div>
