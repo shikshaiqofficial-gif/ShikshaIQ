@@ -35,7 +35,7 @@ export default function Home() {
         <nav className="hidden xl:flex items-center gap-1 bg-gradient-to-r from-orange-50 via-white to-emerald-50 border border-orange-300 px-3 py-1.5 rounded-full shadow-inner">
           <button
             onClick={() => navigate('/')}
-            className="px-4 py-1.5 text-xs font-bold bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-600 text-white rounded-full shadow-md transition"
+            className="px-4 py-1.5 text-xs font-bold bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-600 text-white rounded-full shadow-md transition cursor-pointer"
           >
             Home
           </button>
@@ -46,13 +46,13 @@ export default function Home() {
             { name: 'Live Classes', path: '/live-classes', live: true },
             { name: 'Flashcards', path: '/flashcards' },
             { name: 'Current Affairs', path: '/current-affairs' },
-            { name: 'Jobs', path: '/dashboard' },
+            { name: 'Jobs', path: '/jobs' },
             { name: 'More', path: '/dashboard', hasDropdown: true },
           ].map((item) => (
             <button
               key={item.name}
               onClick={() => navigate(item.path)}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-orange-600 hover:bg-orange-50/50 rounded-full transition flex items-center gap-1 relative"
+              className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-orange-600 hover:bg-orange-50/50 rounded-full transition flex items-center gap-1 relative cursor-pointer"
             >
               {item.name}
               {item.hasDropdown && <span className="text-[10px] opacity-70">▼</span>}
@@ -69,7 +69,7 @@ export default function Home() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/dashboard')}
-            className="w-9 h-9 rounded-full bg-slate-100 border border-orange-200 hover:border-orange-400 flex items-center justify-center text-slate-700 hover:text-orange-600 transition shadow-sm"
+            className="w-9 h-9 rounded-full bg-slate-100 border border-orange-200 hover:border-orange-400 flex items-center justify-center text-slate-700 hover:text-orange-600 transition shadow-sm cursor-pointer"
             title="Help / Support"
           >
             <HelpCircle className="w-4 h-4" />
@@ -77,14 +77,14 @@ export default function Home() {
 
           <button
             onClick={() => navigate('/login')}
-            className="px-5 py-2 text-xs font-bold text-slate-700 hover:text-orange-600 transition"
+            className="px-5 py-2 text-xs font-bold text-slate-700 hover:text-orange-600 transition cursor-pointer"
           >
             Login
           </button>
 
           <button
             onClick={() => navigate('/register')}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 via-blue-600 to-emerald-600 hover:opacity-95 text-white text-xs font-bold rounded-full shadow-lg shadow-orange-500/20 transition hover:scale-105 flex items-center gap-2"
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 via-blue-600 to-emerald-600 hover:opacity-95 text-white text-xs font-bold rounded-full shadow-lg shadow-orange-500/20 transition hover:scale-105 flex items-center gap-2 cursor-pointer"
           >
             Join Now <ArrowRight className="w-3.5 h-3.5" />
           </button>
@@ -113,13 +113,13 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-4 pt-2">
             <button
               onClick={() => navigate('/register')}
-              className="px-7 py-3.5 bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-600 hover:opacity-95 text-white font-bold rounded-xl shadow-xl shadow-orange-500/20 transition hover:scale-105 flex items-center gap-2.5 text-sm"
+              className="px-7 py-3.5 bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-600 hover:opacity-95 text-white font-bold rounded-xl shadow-xl shadow-orange-500/20 transition hover:scale-105 flex items-center gap-2.5 text-sm cursor-pointer"
             >
               Start Preparing Now <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => navigate('/mock-test')}
-              className="px-7 py-3.5 bg-white hover:bg-orange-50 text-slate-700 border border-orange-200 font-semibold rounded-xl transition hover:scale-105 flex items-center gap-2.5 text-sm shadow-sm"
+              className="px-7 py-3.5 bg-white hover:bg-orange-50 text-slate-700 border border-orange-200 font-semibold rounded-xl transition hover:scale-105 flex items-center gap-2.5 text-sm shadow-sm cursor-pointer"
             >
               <Zap className="w-4 h-4 text-orange-500" /> Take Free Mock Test
             </button>
@@ -185,7 +185,7 @@ export default function Home() {
             { name: 'AI Doubt Solver', desc: 'Instant Solutions', icon: Sparkles, path: '/doubts', color: 'from-emerald-600 to-teal-600' },
             { name: 'Live Classes', desc: 'Learn from Experts', icon: Users, path: '/live-classes', color: 'from-orange-600 to-rose-600', live: true },
             { name: 'Current Affairs', desc: 'Daily Updates', icon: FileText, path: '/current-affairs', color: 'from-blue-600 to-cyan-600' },
-            { name: 'Job Updates', desc: 'Daily Alerts', icon: Bell, path: '/dashboard', color: 'from-emerald-600 to-green-600' },
+            { name: 'Job Updates', desc: 'Daily Alerts', icon: Bell, path: '/jobs', color: 'from-emerald-600 to-green-600' },
             { name: 'Dashboard', desc: 'Track Progress', icon: BarChart3, path: '/dashboard', color: 'from-indigo-600 to-purple-600' },
             { name: 'Battle Arena', desc: 'Compete & Win', icon: Swords, path: '/battle', color: 'from-orange-600 to-red-600', hot: true },
             { name: 'AIR Leaderboard', desc: 'All India Ranking', icon: Award, path: '/dashboard', color: 'from-amber-500 to-yellow-600' },
@@ -235,7 +235,7 @@ export default function Home() {
       <section className="py-12 px-6 sm:px-12 lg:px-16 max-w-7xl mx-auto w-full space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-black text-slate-900">Explore Top Exams</h2>
-          <button onClick={() => navigate('/dashboard')} className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1">
+          <button onClick={() => navigate('/mock-test')} className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1 cursor-pointer">
             View All Exams <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -281,7 +281,7 @@ export default function Home() {
               <div className="w-2/5 bg-orange-500 h-full"></div>
             </div>
           </div>
-          <button className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md">
+          <button className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer">
             <Swords className="w-4 h-4" /> Start Battle Now
           </button>
         </div>
@@ -322,7 +322,7 @@ export default function Home() {
             <div className="text-slate-500">Q: Why is photosynthesis important?</div>
             <div className="text-emerald-600">Photosynthesis is important because it produces food and releases oxygen...</div>
           </div>
-          <button className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md">
+          <button className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer">
             <Sparkles className="w-4 h-4" /> Ask New Question
           </button>
         </div>
@@ -333,7 +333,7 @@ export default function Home() {
         <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-black text-slate-900">Daily Current Affairs</h3>
-            <button onClick={() => navigate('/current-affairs')} className="text-xs text-orange-600 hover:underline font-bold">View All →</button>
+            <button onClick={() => navigate('/current-affairs')} className="text-xs text-orange-600 hover:underline font-bold cursor-pointer">View All →</button>
           </div>
           <div className="space-y-3">
             {[
@@ -355,13 +355,13 @@ export default function Home() {
         <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-black text-slate-900">Daily Job Updates</h3>
-            <button onClick={() => navigate('/dashboard')} className="text-xs text-orange-600 hover:underline font-bold">View All →</button>
+            <button onClick={() => navigate('/jobs')} className="text-xs text-orange-600 hover:underline font-bold cursor-pointer">View All →</button>
           </div>
           <div className="space-y-3">
             {[
-              { title: 'SSC CGL 2026 Notification Out', org: 'Staff Selection Commission', tag: 'SSC' },
-              { title: 'RRB Technician Vacancy 2026', org: 'Railway Recruitment Board', tag: 'Railway' },
-              { title: 'IBPS PO/Clerk Recruitment 2026', org: 'Institute of Banking Personnel', tag: 'Banking' },
+              { title: 'SSC CGL 2026 Notification Out', org: 'Staff Selection Commission', tag: 'SSC', url: 'https://ssc.gov.in' },
+              { title: 'RRB Technician Vacancy 2026', org: 'Railway Recruitment Board', tag: 'Railway', url: 'https://indianrailways.gov.in' },
+              { title: 'IBPS PO/Clerk Recruitment 2026', org: 'Institute of Banking Personnel', tag: 'Banking', url: 'https://ibps.in' },
             ].map((job, idx) => (
               <div key={idx} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-xs">
                 <div className="space-y-1">
@@ -369,9 +369,15 @@ export default function Home() {
                   <div className="font-bold text-slate-900 mt-1">{job.title}</div>
                   <div className="text-[10px] text-slate-500">{job.org}</div>
                 </div>
-                <button onClick={() => navigate('/dashboard')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-[11px] shrink-0">
+                {/* Fixed: Opens external job link in a new browser tab */}
+                <a 
+                  href={job.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-[11px] shrink-0 inline-block text-center cursor-pointer shadow-sm"
+                >
                   Apply Now
-                </button>
+                </a>
               </div>
             ))}
           </div>
@@ -401,10 +407,10 @@ export default function Home() {
           <p className="text-sm text-slate-600">Join ShikshaIQ today and take the first step towards success.</p>
         </div>
         <div className="flex flex-wrap justify-center gap-4">
-          <button onClick={() => navigate('/register')} className="px-8 py-3.5 bg-gradient-to-r from-orange-500 via-blue-600 to-emerald-600 hover:opacity-95 text-white font-bold rounded-2xl text-sm shadow-xl shadow-orange-500/20 transition hover:scale-105">
+          <button onClick={() => navigate('/register')} className="px-8 py-3.5 bg-gradient-to-r from-orange-500 via-blue-600 to-emerald-600 hover:opacity-95 text-white font-bold rounded-2xl text-sm shadow-xl shadow-orange-500/20 transition hover:scale-105 cursor-pointer">
             Join Now – It's Free! 🚀
           </button>
-          <button onClick={() => navigate('/dashboard')} className="px-8 py-3.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-semibold rounded-2xl text-sm transition shadow-sm">
+          <button onClick={() => navigate('/dashboard')} className="px-8 py-3.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-semibold rounded-2xl text-sm transition shadow-sm cursor-pointer">
             Explore More →
           </button>
         </div>
@@ -419,27 +425,27 @@ export default function Home() {
         <div className="space-y-2">
           <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Quick Links</h4>
           <ul className="space-y-1.5">
-            <li><a href="/dashboard" className="hover:text-slate-200">About Us</a></li>
-            <li><a href="/dashboard" className="hover:text-slate-200">Contact Us</a></li>
-            <li><a href="/dashboard" className="hover:text-slate-200">Privacy Policy</a></li>
-            <li><a href="/dashboard" className="hover:text-slate-200">Terms & Conditions</a></li>
+            <li><button onClick={() => navigate('/dashboard')} className="hover:text-slate-200 text-left">About Us</button></li>
+            <li><button onClick={() => navigate('/dashboard')} className="hover:text-slate-200 text-left">Contact Us</button></li>
+            <li><button onClick={() => navigate('/dashboard')} className="hover:text-slate-200 text-left">Privacy Policy</button></li>
+            <li><button onClick={() => navigate('/dashboard')} className="hover:text-slate-200 text-left">Terms & Conditions</button></li>
           </ul>
         </div>
         <div className="space-y-2">
           <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Exams</h4>
           <ul className="space-y-1.5">
-            <li><a href="/mock-test" className="hover:text-slate-200">SSC</a></li>
-            <li><a href="/mock-test" className="hover:text-slate-200">Railways</a></li>
-            <li><a href="/mock-test" className="hover:text-slate-200">Banking</a></li>
-            <li><a href="/mock-test" className="hover:text-slate-200">Defence</a></li>
+            <li><button onClick={() => navigate('/mock-test')} className="hover:text-slate-200 text-left">SSC</button></li>
+            <li><button onClick={() => navigate('/mock-test')} className="hover:text-slate-200 text-left">Railways</button></li>
+            <li><button onClick={() => navigate('/mock-test')} className="hover:text-slate-200 text-left">Banking</button></li>
+            <li><button onClick={() => navigate('/mock-test')} className="hover:text-slate-200 text-left">Defence</button></li>
           </ul>
         </div>
         <div className="space-y-2">
           <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Download App</h4>
           <p className="text-slate-400">Get the full experience on Android & iOS.</p>
           <div className="flex gap-2 pt-2">
-            <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold">Google Play</button>
-            <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold">App Store</button>
+            <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold cursor-pointer">Google Play</button>
+            <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold cursor-pointer">App Store</button>
           </div>
         </div>
       </footer>

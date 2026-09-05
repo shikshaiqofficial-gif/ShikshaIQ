@@ -231,7 +231,7 @@ async function invokeGeminiWithFallback(contents) {
 
   try {
    const response = await ai.models.generateContent({
-  model: 'gemini-3.5-flash', // <--- Updated active model
+  model: 'gemini-3.5-flash',
   contents: contents
     });
 
@@ -309,6 +309,59 @@ Return strictly raw JSON without backticks, markdown code blocks, or preamble te
     console.error('Failed to auto-generate high-volume daily current affairs:', err.message);
   }
 }
+
+// ----------------------------------------------------
+// AUTOMATED ALL-INDIA GOVERNMENT JOB ALERTS SCRAPER
+// ----------------------------------------------------
+async function generateDailyJobsWithGemini() {
+  if (!ai) return;
+  try {
+    console.log('[AI Engine] Scanning live web for all active government & public sector jobs in India...');
+    
+    const prompt = `Search the live web for current active government and public sector job notifications across India right now in September 2026.
+Cover a diverse mix of sectors: 
+1. Central Govt / SSC
+2. Banking & Insurance (IBPS, SBI, RBI)
+3. Railways (RRB NTPC, ALP, Group D)
+4. UPSC & Civil Services
+5. Defence (CDS, NDA, Agniveer)
+6. PSU & Engineering (GATE, ONGC, BHEL, NTPC)
+7. State PSC & Teaching (CTET, State Police/Teacher boards)
+
+Generate 10 distinct, active recruitment notifications with real details.
+Return ONLY a valid JSON array of objects with this exact structure:
+[
+  {
+    "title": "Exact Job Notification Title",
+    "organization": "Recruiting Body Name",
+    "vacancies": "e.g., 5,420 Posts or Various",
+    "qualification": "e.g., 10th / 12th / Graduate / B.Tech",
+    "lastDate": "e.g., 30 September 2026",
+    "applyUrl": "[https://official-website.gov.in](https://official-website.gov.in)",
+    "category": "Central Govt" 
+  }
+]
+Note: Category must be one of: ['Central Govt', 'Banking', 'Railways', 'UPSC', 'Defence', 'PSU', 'State PSC'].
+Return strictly raw JSON without backticks, markdown fences, or extra text.`;
+
+    const rawOutput = await invokeGeminiWithFallback(prompt);
+    let cleanText = rawOutput.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+    const jobs = JSON.parse(cleanText);
+
+    if (Array.isArray(jobs)) {
+      for (const job of jobs) {
+        const exists = await JobAlert.findOne({ title: job.title });
+        if (!exists) {
+          await JobAlert.create(job);
+        }
+      }
+      console.log('Successfully auto-populated pan-India government job alerts!');
+    }
+  } catch (err) {
+    console.error('Failed to auto-generate all-India job alerts:', err.message);
+  }
+}
+
 // ----------------------------------------------------
 // 100-QUESTION DAILY ENGINE (BATCH GENERATION & CACHING)
 // ----------------------------------------------------
@@ -1341,7 +1394,11 @@ app.get('/api/current-affairs', async (req, res) => {
 
 app.get('/api/jobs', async (req, res) => {
   try {
-    const jobs = await JobAlert.find().sort({ createdAt: -1 }).limit(10);
+    let jobs = await JobAlert.find().sort({ createdAt: -1 }).limit(20);
+    if (!jobs || jobs.length === 0) {
+      await generateDailyJobsWithGemini();
+      jobs = await JobAlert.find().sort({ createdAt: -1 }).limit(20);
+    }
     res.json({ success: true, jobs });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch jobs.' });
@@ -1362,13 +1419,15 @@ mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('MongoDB Atlas connection established successfully.');
     
-    // Auto-generate fresh current affairs on startup
+    // Auto-generate fresh content on startup
     await generateDailyAffairsWithGemini();
+    await generateDailyJobsWithGemini(); // <--- Automated pan-India job alerts sync on startup
 
-    // Schedule daily current affairs update via cron at 6:00 AM daily
+    // Schedule daily sync via cron at 6:00 AM daily
     cron.schedule('0 6 * * *', async () => {
-      console.log('[Cron] Triggering daily automated Gemini current affairs refresh...');
+      console.log('[Cron] Triggering daily automated Gemini content refresh...');
       await generateDailyAffairsWithGemini();
+      await generateDailyJobsWithGemini();
     });
 
     server.listen(PORT, () => {

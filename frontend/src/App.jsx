@@ -18,6 +18,7 @@ const AnalyticsHub = lazy(() => import("./AnalyticsHub"));
 const AdminPanel = lazy(() => import("./AdminPanel"));
 const LiveClasses = lazy(() => import("./LiveClasses"));
 const CurrentAffairs = lazy(() => import("./CurrentAffairs"));
+const JobAlerts = lazy(() => import("./JobAlerts")); // <--- Added JobAlerts import
 
 // Loading component
 const LoadingFallback = () => (
@@ -46,7 +47,8 @@ export default function App() {
           <Route path="/doubts" element={<DoubtSolver />} />
           <Route path="/analytics" element={<AnalyticsHub />} />
           <Route path="/live-classes" element={<LiveClasses />} />
-          <Route path="/current-affairs" element={<CurrentAffairs />} /> {/* <-- Route registered here */}
+          <Route path="/current-affairs" element={<CurrentAffairs />} />
+          <Route path="/jobs" element={<JobAlerts />} /> {/* <-- Route registered here */}
 
           {/* Admin */}
           <Route path="/admin" element={<AdminPanel />} />

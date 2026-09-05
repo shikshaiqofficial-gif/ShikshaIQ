@@ -14,7 +14,8 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  ChevronRight
+  ChevronRight,
+  Briefcase
 } from 'lucide-react';
 
 // Lazy load secondary components for high performance
@@ -58,12 +59,14 @@ export default function Dashboard() {
 
         const [statsRes, jobsRes, activityRes] = await Promise.all([
           axios.get('/api/dashboard/stats', config).catch(() => ({ data: null })),
-          axios.get('/api/dashboard/jobs', config).catch(() => ({ data: [] })),
+          axios.get('/api/jobs', config).catch(() => ({ data: { jobs: [] } })),
           axios.get('/api/dashboard/activity', config).catch(() => ({ data: [] }))
         ]);
 
         setStats(statsRes.data);
-        setJobAlerts(Array.isArray(jobsRes.data) ? jobsRes.data : []);
+        // Safely extract jobs array from the backend response structure
+        const jobsList = jobsRes.data?.jobs || jobsRes.data;
+        setJobAlerts(Array.isArray(jobsList) ? jobsList : []);
         setRecentActivity(Array.isArray(activityRes.data) ? activityRes.data : []);
 
       } catch (err) {
@@ -88,14 +91,16 @@ export default function Dashboard() {
           <p className="text-sm font-bold text-white">{job?.title || 'Job Title N/A'}</p>
           <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded-full">New</span>
         </div>
-        <p className="text-xs text-slate-400">{job?.organization || 'Organization'} • {job?.location || 'Location'}</p>
-        <p className="text-xs text-slate-500 line-clamp-1 pt-1">{job?.description || 'Details pending update...'}</p>
-        {job?.applyLink && (
+        <p className="text-xs text-slate-400">{job?.organization || job?.examAgency || 'Organization'} • {job?.vacancies || 'Various'}</p>
+        <p className="text-xs text-slate-500 line-clamp-1 pt-1">{job?.qualification || job?.description || 'Details pending update...'}</p>
+        
+        {/* Fixed: Opens official applyUrl in a new tab instead of routing to dashboard */}
+        {(job?.applyUrl || job?.applyLink) && (
           <a
-            href={job.applyLink}
+            href={job.applyUrl || job.applyLink}
             target="_blank"
-            rel="noreferrer"
-            className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold pt-2 inline-flex items-center gap-1"
+            rel="noopener noreferrer"
+            className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold pt-2 inline-flex items-center gap-1 cursor-pointer"
           >
             Apply Now <ChevronRight className="w-3 h-3" />
           </a>
@@ -140,13 +145,14 @@ export default function Dashboard() {
             { name: 'Overview', icon: LayoutDashboard, path: '/dashboard', active: true },
             { name: 'Mock Tests', icon: Zap, path: '/mock-test' },
             { name: 'Live Battles', icon: Swords, path: '/battle' },
+            { name: 'Govt Jobs', icon: Briefcase, path: '/jobs' },
             { name: 'Analytics', icon: BarChart3, path: '/analytics' },
             { name: 'Mistake Vault', icon: AlertTriangle, path: '/mistakes' },
           ].map((item) => (
             <button
               key={item.name}
               onClick={() => navigate(item.path)}
-              className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition ${
+              className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition cursor-pointer ${
                 item.active
                   ? 'bg-indigo-600/10 text-indigo-300 shadow-inner'
                   : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
@@ -168,7 +174,7 @@ export default function Dashboard() {
             <p className="text-sm text-slate-400">Here is your daily command center for SSC/Banking prep.</p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="p-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 relative">
+            <button className="p-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 relative cursor-pointer">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500"></span>
             </button>
@@ -196,7 +202,7 @@ export default function Dashboard() {
 
               {/* Quick Actions */}
               <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button onClick={() => navigate('/mock-test')} className="p-8 bg-gradient-to-r from-indigo-600/80 to-indigo-900/80 rounded-3xl text-left space-y-3 shadow-lg shadow-indigo-900/20 hover:scale-[1.02] transition group border border-indigo-500/30 relative">
+                <button onClick={() => navigate('/mock-test')} className="p-8 bg-gradient-to-r from-indigo-600/80 to-indigo-900/80 rounded-3xl text-left space-y-3 shadow-lg shadow-indigo-900/20 hover:scale-[1.02] transition group border border-indigo-500/30 relative cursor-pointer">
                   <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white backdrop-blur-sm">
                     <Zap className="w-7 h-7" />
                   </div>
@@ -204,7 +210,7 @@ export default function Dashboard() {
                   <p className="text-sm text-indigo-100 opacity-90">Full 100-Q simulation. Time yourself against the clock.</p>
                   <ArrowRight className="w-5 h-5 text-white absolute top-6 right-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
                 </button>
-                <button onClick={() => navigate('/battle')} className="p-8 bg-gradient-to-r from-rose-600/80 to-rose-900/80 rounded-3xl text-left space-y-3 shadow-lg shadow-rose-900/20 hover:scale-[1.02] transition group border border-rose-500/30 relative">
+                <button onClick={() => navigate('/battle')} className="p-8 bg-gradient-to-r from-rose-600/80 to-rose-900/80 rounded-3xl text-left space-y-3 shadow-lg shadow-rose-900/20 hover:scale-[1.02] transition group border border-rose-500/30 relative cursor-pointer">
                   <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white backdrop-blur-sm">
                     <Swords className="w-7 h-7" />
                   </div>
@@ -224,7 +230,7 @@ export default function Dashboard() {
                     <Bell className="w-5 h-5 text-amber-400" />
                     Latest Job Alerts
                   </h3>
-                  <button onClick={() => navigate('/dashboard')} className="text-xs text-indigo-400 hover:underline font-semibold">View All</button>
+                  <button onClick={() => navigate('/jobs')} className="text-xs text-indigo-400 hover:underline font-semibold cursor-pointer">View All</button>
                 </div>
 
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
@@ -240,7 +246,7 @@ export default function Dashboard() {
 
                   {!loading && jobAlerts?.length > 0 && (
                     jobAlerts.map((job) => (
-                      <JobAlertCard key={job?.id || crypto.randomUUID()} job={job} />
+                      <JobAlertCard key={job?._id || job?.id || crypto.randomUUID()} job={job} />
                     ))
                   )}
                 </div>
