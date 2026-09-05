@@ -14,118 +14,48 @@ import {
   Clock,
   AlertCircle,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Building2
 } from 'lucide-react';
-
-const FALLBACK_JOBS = [
-  {
-    _id: '1',
-    title: "SSC Combined Graduate Level (CGL) Examination",
-    examAgency: "SSC",
-    vacancies: "14,500+ Posts",
-    qualification: "Bachelor's Degree in any discipline",
-    ageLimit: "18 - 32 Years",
-    applicationStartDate: "June 2026",
-    applicationEndDate: "July 2026",
-    examDate: "September / October 2026",
-    status: "Active",
-    notificationUrl: "https://ssc.gov.in",
-    applyUrl: "https://ssc.gov.in"
-  },
-  {
-    _id: '2',
-    title: "RRB Non-Technical Popular Categories (NTPC)",
-    examAgency: "RRB",
-    vacancies: "11,558 Posts",
-    qualification: "12th Pass / Graduate depending on level",
-    ageLimit: "18 - 33 Years",
-    applicationStartDate: "September 2026",
-    applicationEndDate: "October 2026",
-    examDate: "December 2026 - January 2027",
-    status: "Active",
-    notificationUrl: "https://indianrailways.gov.in",
-    applyUrl: "https://indianrailways.gov.in"
-  },
-  {
-    _id: '3',
-    title: "Railway Recruitment Cell Group D (Level-1)",
-    examAgency: "RRB",
-    vacancies: "32,000+ Posts (Projected)",
-    qualification: "10th Pass + ITI or equivalent",
-    ageLimit: "18 - 33 Years",
-    applicationStartDate: "October 2026",
-    applicationEndDate: "November 2026",
-    examDate: "Early 2027",
-    status: "Upcoming",
-    notificationUrl: "https://indianrailways.gov.in",
-    applyUrl: "https://indianrailways.gov.in"
-  }
-];
 
 export default function JobAlerts() {
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState(FALLBACK_JOBS);
+  const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAgency, setSelectedAgency] = useState('ALL');
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   useEffect(() => {
     fetchJobs();
-  }, [selectedAgency, selectedStatus]);
+  }, [selectedCategory]);
 
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const res = await API.get(`/jobs?agency=${selectedAgency}&status=${selectedStatus}`);
-      if (res.data?.success && res.data.jobs?.length > 0) {
+      const endpoint = selectedCategory === 'ALL' 
+        ? '/jobs' 
+        : `/jobs?category=${selectedCategory}`;
+      
+      const res = await API.get(endpoint);
+      if (res.data?.success && res.data.jobs) {
         setJobs(res.data.jobs);
       }
     } catch (err) {
-      console.warn('Backend loading or waking, using cached notifications.');
-      let filtered = FALLBACK_JOBS;
-      if (selectedAgency !== 'ALL') {
-        filtered = filtered.filter(j => j.examAgency === selectedAgency);
-      }
-      if (selectedStatus !== 'ALL') {
-        filtered = filtered.filter(j => j.status === selectedStatus);
-      }
-      setJobs(filtered);
+      console.error('Failed to fetch job alerts from server:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const filteredJobs = jobs.filter((j) => {
-    const matchesSearch = j.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          j.qualification.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const titleMatch = j.title?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const orgMatch = j.organization?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const qualMatch = j.qualification?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    return titleMatch || orgMatch || qualMatch;
   });
 
-  const getStatusBadge = (status) => {
-    if (status === 'Active') {
-      return (
-        <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
-          <CheckCircle2 className="w-3 h-3" /> Active Application
-        </span>
-      );
-    }
-    if (status === 'Upcoming') {
-      return (
-        <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
-          <Clock className="w-3 h-3" /> Notification Awaited
-        </span>
-      );
-    }
-    return (
-      <span className="bg-slate-700/60 text-slate-400 border border-slate-600 px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
-        <AlertCircle className="w-3 h-3" /> Closed
-      </span>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
       {/* Header */}
       <header className="h-16 bg-slate-800/80 border-b border-slate-700/60 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -137,19 +67,20 @@ export default function JobAlerts() {
           </button>
           <div className="flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-indigo-400" />
-            <h1 className="font-bold text-lg">Govt Job Alerts & Notifications</h1>
+            <h1 className="font-bold text-lg text-white">All-India Government Job Alerts</h1>
           </div>
-          <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full font-medium ml-2">
-            SSC & Railway Portal
+          <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-medium ml-2 hidden sm:inline-block">
+            Live AI Grounding Feed
           </span>
         </div>
 
         <button
           onClick={fetchJobs}
-          className="p-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition cursor-pointer"
-          title="Refresh Alerts"
+          className="p-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+          title="Refresh Live Alerts"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-400' : ''}`} />
+          <span className="hidden sm:inline">Refresh Feed</span>
         </button>
       </header>
 
@@ -162,7 +93,7 @@ export default function JobAlerts() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search exam, posts, or degree requirement..."
+              placeholder="Search by exam, organization, or qualification (e.g. Graduate, SSC, Railway)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -172,27 +103,21 @@ export default function JobAlerts() {
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="flex items-center gap-1 text-xs text-slate-400">
               <Filter className="w-3.5 h-3.5" />
-              <span>Agency:</span>
+              <span>Sector:</span>
             </div>
             <select
-              value={selectedAgency}
-              onChange={(e) => setSelectedAgency(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500 cursor-pointer w-full md:w-auto"
             >
-              <option value="ALL">All Boards</option>
-              <option value="SSC">SSC (Staff Selection)</option>
-              <option value="RRB">RRB (Railway Recruitment)</option>
-            </select>
-
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Upcoming">Upcoming</option>
-              <option value="Closed">Closed</option>
+              <option value="ALL">All Sectors</option>
+              <option value="Central Govt">Central Govt / SSC</option>
+              <option value="Banking">Banking & Insurance</option>
+              <option value="Railways">Railways</option>
+              <option value="UPSC">UPSC & Civil Services</option>
+              <option value="Defence">Defence</option>
+              <option value="PSU">PSU & Engineering</option>
+              <option value="State PSC">State PSC & Teaching</option>
             </select>
           </div>
         </div>
@@ -201,91 +126,80 @@ export default function JobAlerts() {
         {loading ? (
           <div className="py-24 text-center space-y-3">
             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
-            <p className="text-xs text-slate-400">Loading government job announcements...</p>
+            <p className="text-xs text-slate-400">Scanning live web for active government job notifications...</p>
           </div>
         ) : filteredJobs.length === 0 ? (
-          <div className="py-16 text-center bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6">
-            <Briefcase className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-            <p className="text-sm text-slate-300 font-medium">No matching job alerts found.</p>
-            <p className="text-xs text-slate-500 mt-1">Try resetting the board or status filters.</p>
+          <div className="py-16 text-center bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 space-y-3">
+            <Briefcase className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+            <p className="text-sm text-slate-300 font-medium">No live job alerts found.</p>
+            <p className="text-xs text-slate-500">Your AI background script might still be syncing. Click the refresh button above.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {filteredJobs.map((job) => (
               <div
-                key={job._id}
-                className="bg-slate-800/70 border border-slate-700/70 rounded-2xl p-6 shadow-xl space-y-4 hover:border-slate-600 transition"
+                key={job._id || job.id}
+                className="bg-slate-800/70 border border-slate-700/70 rounded-2xl p-6 shadow-xl space-y-4 hover:border-indigo-500/50 transition"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold uppercase bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-md border border-indigo-500/30">
-                        {job.examAgency}
+                        {job.category || 'Central Govt'}
                       </span>
-                      {getStatusBadge(job.status)}
+                      <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Active Application
+                      </span>
                     </div>
                     <h2 className="text-base font-bold text-white mt-1">
                       {job.title}
                     </h2>
+                    <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+                      {job.organization}
+                    </p>
                   </div>
 
                   <div className="text-right">
-                    <span className="text-xs text-slate-400">Total Vacancies</span>
-                    <p className="text-base font-extrabold text-amber-400">{job.vacancies}</p>
+                    <span className="text-xs text-slate-400 block">Vacancies</span>
+                    <span className="text-sm font-extrabold text-amber-400">{job.vacancies || 'Various'}</span>
                   </div>
                 </div>
 
                 {/* Details Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 text-xs">
                   <div className="flex items-start gap-2.5">
                     <GraduationCap className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Eligibility</span>
+                      <span className="text-slate-400 block text-[11px]">Qualification Required</span>
                       <span className="font-medium text-slate-200">{job.qualification}</span>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-2.5">
-                    <Users className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                    <Calendar className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Age Limit</span>
-                      <span className="font-medium text-slate-200">{job.ageLimit}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5">
-                    <Calendar className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Exam Date</span>
-                      <span className="font-medium text-emerald-400">{job.examDate}</span>
+                      <span className="text-slate-400 block text-[11px]">Application Deadline</span>
+                      <span className="font-medium text-rose-300">{job.lastDate}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer Dates & Links */}
+                {/* Footer Apply Links */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-700/50 text-xs">
-                  <div className="text-slate-400">
-                    Application Window: <span className="text-slate-200 font-medium">{job.applicationStartDate}</span> — <span className="text-rose-400 font-medium">{job.applicationEndDate}</span>
-                  </div>
+                  <span className="text-slate-400 text-[11px]">
+                    Official recruitment listing verified by ShikshaIQ AI Engine.
+                  </span>
 
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={job.notificationUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl transition flex items-center gap-1.5 text-xs font-medium"
-                    >
-                      <span>Official PDF</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                    {job.status === 'Active' && (
+                  <div>
+                    {job.applyUrl && (
                       <a
                         href={job.applyUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition flex items-center gap-1.5 text-xs font-semibold shadow-md shadow-indigo-900/30"
+                        className="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white rounded-xl transition flex items-center gap-1.5 text-xs font-bold shadow-lg shadow-orange-500/20 cursor-pointer"
                       >
-                        <span>Apply Online</span>
+                        <span>Apply on Official Website</span>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     )}
