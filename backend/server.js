@@ -662,34 +662,33 @@ app.get('/api/mock-tests/:id/download-pdf', verifyToken, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename=ShikshaIQ_Report_${req.params.id}.pdf`);
     doc.pipe(res);
 
-    // Helper function for Watermark and Footer on every page
+    // Robust Branding Function for EVERY Page
     const applyBranding = () => {
-    
+      // 1. Center Watermark Logo in the middle of A4 (Width: 595, Height: 842)
       doc.save();
+      doc.translate(297, 421); // Move to exact center of A4
+      doc.rotate(-35);          // Diagonal tilt
+      doc.fontSize(60).fillColor('#4f46e5');
+      doc.opacity(0.04);        // Faint background watermark
+      doc.text('ShikshaIQ', -150, -20, { align: 'center', width: 300, lineBreak: false });
+      doc.restore();
 
-       // 1. Center Watermark Logo in the middle of A4 (A4 Width: ~595pt, Height: ~842pt)
-      doc.translate(297, 421); // Move origin to center of page
-      doc.rotate(-35);          // Tilt diagonally
-      doc.fontSize(55).fillColor('#4f46e5');
-      doc.opacity(0.05);        // Very faint watermark opacity
-      doc.text('ShikshaIQ', 0, 0, { align: 'center' }); // Draw at center
-      
-      doc.restore(); // Restore normal canvas state for regular content
-      // Footer on every page
+      // 2. Footer at the bottom of every page
       doc.save();
       doc.fontSize(9).fillColor('#64748b');
-      doc.text('www.shikshaIQ.com — Empowering Competitive Exam Aspirants', 50, 800, { align: 'width' });
+      doc.text('www.shikshaIQ.com — Empowering Competitive Exam Aspirants', 50, 810, { align: 'center', width: 495, lineBreak: false });
       doc.restore();
     };
 
-    // Apply branding to the first page
-    applyBranding();
-
-    // Trigger branding whenever a new page is automatically added
+    // 1. Register listener BEFORE any pages/content are written so it catches all future pages
     doc.on('pageAdded', () => {
       applyBranding();
     });
 
+    // 2. Apply branding immediately to the first page
+    applyBranding();
+
+    // --- REPORT CONTENT ---
     // Report Header
     doc.fontSize(22).fillColor('#0f172a').font('Helvetica-Bold').text('ShikshaIQ Scorecard', { align: 'center' });
     doc.fontSize(10).fillColor('#4f46e5').text('Official Mock Test Performance Dossier', { align: 'center' });
@@ -711,7 +710,7 @@ app.get('/api/mock-tests/:id/download-pdf', verifyToken, async (req, res) => {
     // Loop through questions and answers
     if (Array.isArray(testResult.questions)) {
       testResult.questions.forEach((q, idx) => {
-        if (doc.y > 700) doc.addPage(); // Auto page break
+        if (doc.y > 700) doc.addPage(); // Automatically triggers 'pageAdded' and stamps branding!
 
         doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b').text(`Q${idx + 1}: ${q.questionText}`);
         doc.fontSize(9).font('Helvetica').fillColor('#475569').text(`Your Answer: ${q.userAnswer} | Correct: ${q.correctAnswer}`);
