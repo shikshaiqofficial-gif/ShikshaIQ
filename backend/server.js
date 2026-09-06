@@ -657,44 +657,45 @@ app.get('/api/mock-tests/:id/download-pdf', verifyToken, async (req, res) => {
 
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
 
-    // Set response headers for PDF download
+    // Set headers and strictly disable caching to force fresh file generation
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=ShikshaIQ_Report_${req.params.id}.pdf`);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     doc.pipe(res);
 
-    const path = require('path');
+    // Robust Branding Function for EVERY Page
+    const applyBranding = () => {
+      try {
+        const logoPath = path.join(__dirname, 'logo.png');
+        if (fs.existsSync(logoPath)) {
+          doc.save();
+          doc.opacity(0.05); // 5% faint watermark opacity
+          doc.image(logoPath, 172, 320, { width: 250 });
+          doc.restore();
+        }
+      } catch (err) {
+        console.warn('Watermark logo.png render warning:', err.message);
+      }
 
-// Robust Branding Function for EVERY Page
-const applyBranding = () => {
-  try {
-    const logoPath = path.join(__dirname, 'logo.png');
-    
-    // 1. Center Watermark Logo with proper global opacity handling
-    doc.save();
-    doc.opacity(0.05); // Set faint background watermark visibility (5% opacity)
-    doc.image(logoPath, 172, 320, { width: 250 });
-    doc.restore(); // Restore opacity back to normal for text/scores
-  } catch (err) {
-    console.warn('Watermark logo.png not found locally or failed to load:', err.message);
-  }
+      // Footer at the bottom of every page
+      doc.save();
+      doc.fontSize(9).fillColor('#64748b');
+      doc.text('www.shikshaIQ.com — Empowering Competitive Exam Aspirants', 50, 810, { align: 'center', width: 495, lineBreak: false });
+      doc.restore();
+    };
 
-  // 2. Footer at the bottom of every page
-  doc.save();
-  doc.fontSize(9).fillColor('#64748b');
-  doc.text('www.shikshaIQ.com — Empowering Competitive Exam Aspirants', 50, 810, { align: 'center', width: 495, lineBreak: false });
-  doc.restore();
-};
-
-    // 1. Register listener BEFORE any pages/content are written so it catches all future pages
+    // Listen for page additions
     doc.on('pageAdded', () => {
       applyBranding();
     });
 
-    // 2. Apply branding immediately to the first page
+    // Brand the first page immediately
     applyBranding();
 
     // --- REPORT CONTENT ---
-    // Report Header
     doc.fontSize(22).fillColor('#0f172a').font('Helvetica-Bold').text('ShikshaIQ Scorecard', { align: 'center' });
     doc.fontSize(10).fillColor('#4f46e5').text('Official Mock Test Performance Dossier', { align: 'center' });
     doc.moveDown(2);
@@ -715,7 +716,7 @@ const applyBranding = () => {
     // Loop through questions and answers
     if (Array.isArray(testResult.questions)) {
       testResult.questions.forEach((q, idx) => {
-        if (doc.y > 700) doc.addPage(); // Automatically triggers 'pageAdded' and stamps branding!
+        if (doc.y > 700) doc.addPage();
 
         doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b').text(`Q${idx + 1}: ${q.questionText}`);
         doc.fontSize(9).font('Helvetica').fillColor('#475569').text(`Your Answer: ${q.userAnswer} | Correct: ${q.correctAnswer}`);
@@ -727,7 +728,9 @@ const applyBranding = () => {
     doc.end();
   } catch (error) {
     console.error('PDF generation error:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate PDF report.' });
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Failed to generate PDF report.' });
+    }
   }
 });
 
