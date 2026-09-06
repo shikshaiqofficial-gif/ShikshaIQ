@@ -664,13 +664,17 @@ app.get('/api/mock-tests/:id/download-pdf', verifyToken, async (req, res) => {
 
     // Helper function for Watermark and Footer on every page
     const applyBranding = () => {
-      // Background Watermark Logo in the middle
+    
       doc.save();
-      doc.opacity(0.06);
-      doc.fontSize(60).fillColor('#4f46e5');
-      doc.text('ShikshaIQ', 150, 400, { align: 'center', angle: -30 });
-      doc.restore();
 
+       // 1. Center Watermark Logo in the middle of A4 (A4 Width: ~595pt, Height: ~842pt)
+      doc.translate(297, 421); // Move origin to center of page
+      doc.rotate(-35);          // Tilt diagonally
+      doc.fontSize(55).fillColor('#4f46e5');
+      doc.opacity(0.05);        // Very faint watermark opacity
+      doc.text('ShikshaIQ', 0, 0, { align: 'center' }); // Draw at center
+      
+      doc.restore(); // Restore normal canvas state for regular content
       // Footer on every page
       doc.save();
       doc.fontSize(9).fillColor('#64748b');
