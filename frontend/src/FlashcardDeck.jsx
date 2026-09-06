@@ -24,49 +24,29 @@ export default function FlashcardDeck() {
     fetchFlashcards();
   }, []);
 
+  
   const fetchFlashcards = async () => {
     setLoading(true);
     try {
-      // Fetch recent mistakes to generate flashcards
-      const mistakesRes = await API.get('/user/mistakes');
-      const mistakes = mistakesRes.data?.mistakes || [];
-
-      if (mistakes.length > 0) {
-        const res = await API.post('/study-plan/flashcards', { mistakes });
-        if (res.data?.flashcards) {
-          setFlashcards(res.data.flashcards);
-        }
+      // Fetch today's automated 25 high-yield daily flashcards
+      const res = await API.get('/study-plan/daily-flashcards?exam=SSC CGL');
+      if (res.data?.success && res.data.flashcards?.length > 0) {
+        setFlashcards(res.data.flashcards);
       } else {
-        // Fallback default high-yield exam flashcards if vault is empty
+        // Fallback default cards if response is empty
         setFlashcards([
           {
             id: 1,
             subject: 'Quantitative Aptitude',
             topic: 'Geometry',
             front: 'What is the relation between the angle formed at the incenter and the opposite vertex angle?',
-            back: 'Angle BIC = 90° + (∠A / 2). If circumcenter instead, Angle BOC = 2 × ∠A. Never mix these up!',
+            back: 'Angle BIC = 90° + (∠A / 2). If circumcenter instead, Angle BOC = 2 × ∠A.',
             mnemonicOrTip: 'Incenter = Add 90° + half; Circumcenter = Direct double.'
-          },
-          {
-            id: 2,
-            subject: 'Quantitative Aptitude',
-            topic: 'Algebra',
-            front: 'If x + 1/x = k, what is the formula for x³ + 1/x³?',
-            back: 'k³ - 3k. Always derive from (x + 1/x)³ = x³ + 1/x³ + 3(x + 1/x).',
-            mnemonicOrTip: 'Cube minus three times k.'
-          },
-          {
-            id: 3,
-            subject: 'General Intelligence',
-            topic: 'Number Series',
-            front: 'What pattern should you check first when numbers grow exponentially in a series?',
-            back: 'Check differences of differences (double difference) or multiplicative growth (n × 2 + 1, n × 3 + 2).',
-            mnemonicOrTip: 'If growth is rapid, test multiplication before addition.'
           }
         ]);
       }
     } catch (err) {
-      console.error('Failed to load flashcards:', err);
+      console.error('Failed to load daily flashcards:', err);
     } finally {
       setLoading(false);
     }

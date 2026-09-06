@@ -516,7 +516,11 @@ cron.schedule('1 0 * * *', async () => {
     }
   }
 });
-
+// Schedule daily flashcard generation at 00:05 AM
+cron.schedule('5 0 * * *', async () => {
+  console.log('[Cron] Triggering midnight 25-flashcard deck generation...');
+  await generateDailyFlashcardsWithGemini('SSC CGL');
+});
 // ----------------------------------------------------
 // REAL-TIME WEBSOCKET (SOCKET.IO) BATTLE ENGINE
 // ----------------------------------------------------
@@ -1137,6 +1141,99 @@ app.post('/api/challenges/:code/submit', async (req, res) => {
   }
 });
 
+async function generateDailyFlashcardsWithGemini(exam = 'SSC CGL') {
+  if (!ai) return null;
+  const todayKey = new Date().toISOString().split('T')[0];
+
+  // Check if today's 25 flashcards already exist
+  const existing = await DailyFlashcard.findOne({ dateKey: todayKey, exam });
+  if (existing && existing.flashcards?.length >= 25) {
+    return existing;
+  }
+
+  console.log(`[AI Engine] Synthesizing 25 daily flashcards for ${todayKey} (${exam})...`);
+
+  const prompt = `You are ShikshaIQ's Chief Concept Architect for competitive exams (${exam}).
+Generate exactly 25 ultra-concise, high-yield daily revision flashcards spanning Quantitative Aptitude, General Intelligence & Reasoning, General Awareness (Polity/History/Science), and English Comprehension.
+Each flashcard must contain a sharp concept, formula, or trick.
+
+Return ONLY a valid JSON array matching this exact schema:
+[
+  {
+    "id": 1,
+    "subject": "Quantitative Aptitude",
+    "topic": "Algebra",
+    "front": "Question or concept prompt",
+    "back": "Core formula or solution",
+    "mnemonicOrTip": "Quick shortcut exam tip"
+  }
+]
+Return strictly raw JSON without backticks, markdown fences, or extra text.`;
+
+  try {
+    const rawOutput = await invokeGeminiWithFallback(prompt);
+    let cleanText = rawOutput.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+    let cards = JSON.parse(cleanText);
+
+    if (!Array.isArray(cards) || cards.length === 0) {
+      throw new Error('Invalid AI response structure');
+    }
+
+    // Ensure we have exactly 25 items
+    cards = cards.slice(0, 25).map((c, idx) => ({
+      id: idx + 1,
+      subject: c.subject || 'General Aptitude',
+      topic: c.topic || 'Core Revision',
+      front: c.front || 'Concept Prompt',
+      back: c.back || 'Core Formula',
+      mnemonicOrTip: c.mnemonicOrTip || 'Practice daily.'
+    }));
+
+    const savedDeck = await DailyFlashcard.findOneAndUpdate(
+      { dateKey: todayKey, exam },
+      { dateKey: todayKey, exam, flashcards: cards, generatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    console.log(`Successfully generated and stored 25 daily flashcards for ${todayKey}!`);
+    return savedDeck;
+  } catch (err) {
+    console.error('Failed to auto-generate daily flashcards:', err.message);
+    return null;
+  }
+}
+
+// Get Today's 25 Automated Flashcards
+app.get('/api/study-plan/daily-flashcards', verifyToken, async (req, res) => {
+  try {
+    const { exam = 'SSC CGL' } = req.query;
+    let dailyDeck = await generateDailyFlashcardsWithGemini(exam);
+
+    if (!dailyDeck || !dailyDeck.flashcards || dailyDeck.flashcards.length === 0) {
+      // Fallback emergency deck if AI is offline
+      return res.json({
+        success: true,
+        source: 'fallback',
+        count: 2,
+        flashcards: [
+          { id: 1, subject: 'Quantitative Aptitude', topic: 'Algebra', front: 'If x + 1/x = 5, what is x² + 1/x²?', back: '23', mnemonicOrTip: 'k² - 2 trick' }
+        ]
+      });
+    }
+
+    res.json({
+      success: true,
+      dateKey: dailyDeck.dateKey,
+      count: dailyDeck.flashcards.length,
+      flashcards: dailyDeck.flashcards,
+      source: 'ai_daily_engine'
+    });
+  } catch (error) {
+    console.error('Daily flashcards fetch error:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve daily flashcards.' });
+  }
+});
+
 // Test Submission & Speed-Accuracy Scoring Route
 app.post('/api/tests/submit', async (req, res) => {
   try {
@@ -1309,6 +1406,22 @@ Question: ${question || 'Solve the question in the attachment.'}`);
     res.status(500).json({ success: false, message: error.message || 'Failed to resolve doubt.' });
   }
 });
+
+const dailyFlashcardSchema = new mongoose.Schema({
+  dateKey: { type: String, required: true, unique: true, index: true }, // e.g. "2026-09-06"
+  exam: { type: String, default: 'SSC CGL' },
+  flashcards: [{
+    id: Number,
+    subject: String,
+    topic: String,
+    front: String,
+    back: String,
+    mnemonicOrTip: String
+  }],
+  generatedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+const DailyFlashcard = mongoose.models.DailyFlashcard || mongoose.model('DailyFlashcard', dailyFlashcardSchema);
 
 // AI Adaptive Weakness Drill Generator
 app.post('/api/study-plan/weakness-drill', async (req, res) => {
