@@ -662,17 +662,20 @@ app.get('/api/mock-tests/:id/download-pdf', verifyToken, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename=ShikshaIQ_Report_${req.params.id}.pdf`);
     doc.pipe(res);
 
-    // Robust Branding Function for EVERY Page
+    const path = require('path');
+
+// Robust Branding Function for EVERY Page
 const applyBranding = () => {
   try {
-    // 1. Center Watermark Logo in the middle of A4 (Width: 595, Height: 842)
     const logoPath = path.join(__dirname, 'logo.png');
-    doc.image(logoPath, 172, 320, {
-      width: 250,
-      opacity: 0.05 // Very faint background watermark effect
-    });
+    
+    // 1. Center Watermark Logo with proper global opacity handling
+    doc.save();
+    doc.opacity(0.05); // Set faint background watermark visibility (5% opacity)
+    doc.image(logoPath, 172, 320, { width: 250 });
+    doc.restore(); // Restore opacity back to normal for text/scores
   } catch (err) {
-    console.warn('Watermark logo.png not found locally, skipping image watermark.');
+    console.warn('Watermark logo.png not found locally or failed to load:', err.message);
   }
 
   // 2. Footer at the bottom of every page
