@@ -245,6 +245,15 @@ export default function StudentProfile() {
               className="w-full mt-1.5 bg-slate-900 border border-slate-800 p-3 rounded-xl text-xs text-white focus:border-indigo-500 focus:outline-none"
             />
           </div>
+          <div>
+  <label className="text-xs font-bold text-slate-300">ShikshaIQ ID (Permanent)</label>
+  <input
+    type="text"
+    value={formData.shikshaId || 'SIQ-2026-Pending'}
+    disabled
+    className="w-full mt-1.5 bg-slate-900/50 border border-slate-800 p-3 rounded-xl text-xs font-mono text-orange-400 cursor-not-allowed tracking-wider"
+  />
+</div>
 
           <button
             type="submit"

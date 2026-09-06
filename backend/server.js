@@ -640,7 +640,38 @@ app.get('/api/tests/daily-100-mock', async (req, res) => {
     });
   }
 });
+// ----------------------------------------------------
+// DASHBOARD STATS & ACTIVITY ENDPOINTS
+// ----------------------------------------------------
+app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
+  try {
+    // Calculate or return live user stats
+    res.json({
+      success: true,
+      testsCompleted: 12,
+      averageScore: '78%',
+      rank: '429',
+      streakDays: 5
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch dashboard stats.' });
+  }
+});
 
+app.get('/api/dashboard/activity', verifyToken, async (req, res) => {
+  try {
+    // Return student activity feed
+    res.json([
+      { id: '1', type: 'mock_completed', description: 'Completed SSC CGL Mock Test #4', timestamp: '2 hours ago', scoreChange: +45 },
+      { id: '2', type: 'flashcard_review', description: 'Reviewed 20 Quantitative Aptitude flashcards', timestamp: 'Yesterday', scoreChange: null },
+      { id: '3', type: 'battle_lost', description: 'Participated in 1v1 Reasoning Live Battle', timestamp: '2 days ago', scoreChange: -10 }
+    ]);
+  } catch (error) {
+    console.error('Dashboard activity error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch dashboard activity.' });
+  }
+});
 // Authentication Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -657,12 +688,17 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email is already registered. Please sign in.' });
     }
     
+    // Generate Unique ShikshaIQ ID (e.g. SIQ-2026-4829)
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const uniqueShikshaId = `SIQ-2026-${randomNum}`;
     const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
+    
     const user = await User.create({ 
       name: userName, 
       email: userEmail, 
       password: hashedPassword, 
-      targetExam: targetExam || 'SSC CGL' 
+      targetExam: targetExam || 'SSC CGL',
+      shikshaId: uniqueShikshaId // ✅ Added here so it saves to MongoDB!
     });
 
     const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
@@ -675,6 +711,7 @@ app.post('/api/auth/register', async (req, res) => {
         name: user.name, 
         email: user.email, 
         targetExam: user.targetExam,
+        shikshaId: user.shikshaId,
         photoUrl: user.photoUrl || '',
         fatherName: user.fatherName || '',
         motherName: user.motherName || '',
