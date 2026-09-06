@@ -321,204 +321,158 @@ export default function MockTest() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Printable PDF Scorecard & Solutions Report Exporter
-  const handleDownloadPDF = () => {
+// Printable PDF Scorecard & Solutions Report Exporter via jsPDF
+  const handleDownloadPDF = async () => {
     if (!result) return;
     setIsGeneratingPdf(true);
 
-    const timeSpent = 3600 - timeLeft;
-    const minutesSpent = Math.floor(timeSpent / 60);
-    const secondsSpent = timeSpent % 60;
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
 
-    const quickSolves = result.questionAnalytics?.filter((q) => q.isCorrect && q.timeSpentSeconds < 45).length || 0;
-    const slowSolves = result.questionAnalytics?.filter((q) => q.isCorrect && q.timeSpentSeconds >= 45).length || 0;
-    const timeTraps = result.questionAnalytics?.filter((q) => !q.isCorrect && q.status === 'incorrect' && q.timeSpentSeconds > 60).length || 0;
+      const timeSpent = 3600 - timeLeft;
+      const minutesSpent = Math.floor(timeSpent / 60);
+      const secondsSpent = timeSpent % 60;
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Pop-up blocked. Please allow pop-ups to print the report.');
+      // Helper to load and draw logo watermark on every page
+      const addWatermarkAndBranding = async () => {
+        try {
+          // Load logo from public folder
+          const imgData = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.src = '/logo.png';
+            img.onload = () => resolve(img);
+            img.onerror = (err) => reject(err);
+          });
+
+          // Draw faint background logo in the center of the page
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.05 })); // 5% faint watermark
+          doc.addImage(imgData, 'PNG', pageWidth / 2 - 35, pageHeight / 2 - 35, 70, 70);
+          doc.restoreGraphicsState();
+        } catch (e) {
+          console.warn('Watermark logo could not be loaded into PDF:', e);
+        }
+      };
+
+      // --- PAGE 1: HEADER & SCORECARD SUMMARY ---
+      await addWatermarkAndBranding();
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42);
+      doc.text('ShikshaIQ Scorecard', pageWidth / 2, 20, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setTextColor(79, 70, 229);
+      doc.text('SSC CGL All-India Daily Mock Performance Report', pageWidth / 2, 26, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Date: ${new Date().toLocaleDateString('en-GB')} | Time Taken: ${minutesSpent}m ${secondsSpent}s`, pageWidth / 2, 32, { align: 'center' });
+
+      // Metrics Summary Grid Box
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(15, 40, pageWidth - 30, 25, 3, 3, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text('FINAL SCORE', 25, 48);
+      doc.text('ACCURACY', 75, 48);
+      doc.text('ATTEMPTED', 125, 48);
+      doc.text('NEG. LOST', 165, 48);
+
+      doc.setFontSize(14);
+      doc.setTextColor(79, 70, 229);
+      doc.text(`${result.score} / ${result.totalMarks}`, 25, 58);
+      doc.setTextColor(16, 185, 129);
+      doc.text(`${result.accuracy}%`, 75, 58);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${result.attempted} / ${questions.length}`, 125, 58);
+      doc.setTextColor(239, 68, 68);
+      doc.text(`-${result.incorrect * 0.5}`, 165, 58);
+
+      let yPos = 75;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Question-by-Question Solutions & Derivations', 15, yPos);
+      yPos += 8;
+
+      // --- QUESTIONS LOOP ---
+      for (let idx = 0; idx < questions.length; idx++) {
+        const q = questions[idx];
+        const selected = answers[q._id];
+        const isCorrect = selected === q.correctOptionIndex;
+        const time = questionTimes[q._id] || 0;
+
+        // Check if we need a new page
+        if (yPos > pageHeight - 45) {
+          doc.addPage();
+          await addWatermarkAndBranding();
+          yPos = 20;
+        }
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(226, 232, 240);
+        
+        // Split question text to wrap cleanly
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(79, 70, 229);
+        doc.text(`Q${idx + 1} • ${q.subject}`, 18, yPos);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Time: ${time}s | Status: ${selected === undefined ? 'Unattempted' : isCorrect ? 'Correct (+2)' : 'Incorrect (-0.5)'}`, pageWidth - 18, yPos, { align: 'right' });
+        yPos += 5;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        const splitQText = doc.splitTextToSize(q.questionText, pageWidth - 36);
+        doc.text(splitQText, 18, yPos);
+        yPos += (splitQText.length * 4) + 4;
+
+        // Explanation Box
+        doc.setFillColor(248, 250, 252);
+        const explanationText = `Solution / Formula: ${q.explanation || 'Refer to concept notes.'}`;
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(8);
+        doc.setTextColor(51, 65, 85);
+        const splitExp = doc.splitTextToSize(explanationText, pageWidth - 44);
+        
+        const boxHeight = (splitExp.length * 4) + 6;
+        doc.roundedRect(18, yPos, pageWidth - 36, boxHeight, 2, 2, 'F');
+        doc.text(splitExp, 22, yPos + 4);
+        
+        yPos += boxHeight + 8;
+      }
+
+      // --- ADD FOOTER TO ALL PAGES ---
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('www.shikshaIQ.com — Empowering Competitive Exam Aspirants', pageWidth / 2, pageHeight - 8, { align: 'center' });
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - 18, pageHeight - 8, { align: 'right' });
+      }
+
+      doc.save(`ShikshaIQ_Scorecard_${Date.now()}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      alert('Failed to generate PDF scorecard report.');
+    } finally {
       setIsGeneratingPdf(false);
-      return;
     }
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>ShikshaIQ Scorecard - SSC CGL Daily Mock</title>
-        <style>
-          @page { size: A4; margin: 15mm; }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #1e293b;
-            margin: 0;
-            padding: 0;
-            font-size: 12px;
-            line-height: 1.5;
-          }
-          .header {
-            border-bottom: 2px solid #4f46e5;
-            padding-bottom: 12px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-          }
-          .logo { font-size: 24px; font-weight: 900; color: #4f46e5; margin: 0; }
-          .exam-title { font-size: 13px; color: #64748b; margin: 2px 0 0 0; }
-          .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 24px;
-          }
-          .card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 10px 14px;
-          }
-          .card-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 4px; }
-          .card-value { font-size: 18px; font-weight: 800; color: #0f172a; }
-          .section-heading {
-            font-size: 14px;
-            font-weight: 800;
-            color: #0f172a;
-            border-bottom: 1px solid #cbd5e1;
-            padding-bottom: 6px;
-            margin-top: 24px;
-            margin-bottom: 14px;
-          }
-          .q-block {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-            page-break-inside: avoid;
-          }
-          .q-meta {
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            font-weight: 700;
-            color: #4f46e5;
-            margin-bottom: 6px;
-          }
-          .q-text { font-weight: 600; color: #0f172a; margin-bottom: 8px; font-size: 12px; }
-          .options-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            font-size: 11px;
-            margin-bottom: 8px;
-          }
-          .opt {
-            padding: 6px 8px;
-            border-radius: 4px;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-          }
-          .opt-correct { background: #dcfce7; border-color: #86efac; color: #166534; font-weight: 700; }
-          .opt-wrong { background: #fee2e2; border-color: #fca5a5; color: #991b1b; font-weight: 700; }
-          .exp-box {
-            background: #f8fafc;
-            border-left: 3px solid #6366f1;
-            padding: 8px 10px;
-            font-size: 11px;
-            color: #334155;
-            margin-top: 6px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <h1 class="logo">ShikshaIQ</h1>
-            <p class="exam-title">SSC CGL All-India Daily Mock Performance Report</p>
-          </div>
-          <div style="text-align: right; font-size: 10px; color: #64748b;">
-            Date: ${new Date().toLocaleDateString('en-GB')} | Time: ${minutesSpent}m ${secondsSpent}s
-          </div>
-        </div>
-
-        <div class="metrics-grid">
-          <div class="card">
-            <div class="card-label">Final Score</div>
-            <div class="card-value" style="color: #4f46e5;">${result.score} / ${result.totalMarks}</div>
-          </div>
-          <div class="card">
-            <div class="card-label">Accuracy</div>
-            <div class="card-value" style="color: #10b981;">${result.accuracy}%</div>
-          </div>
-          <div class="card">
-            <div class="card-label">Attempted / Total</div>
-            <div class="card-value">${result.attempted} / ${questions.length}</div>
-          </div>
-          <div class="card">
-            <div class="card-label">Negative Marks Lost</div>
-            <div class="card-value" style="color: #ef4444;">-${result.incorrect * 0.5}</div>
-          </div>
-        </div>
-
-        <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
-          <div class="card" style="background: #f0fdf4; border-color: #bbf7d0;">
-            <div class="card-label" style="color: #15803d;">Quick Solves (&lt;45s)</div>
-            <div class="card-value" style="color: #166534;">${quickSolves} Questions</div>
-          </div>
-          <div class="card" style="background: #fffbeb; border-color: #fde68a;">
-            <div class="card-label" style="color: #b45309;">Slow Solves (&gt;45s)</div>
-            <div class="card-value" style="color: #92400e;">${slowSolves} Questions</div>
-          </div>
-          <div class="card" style="background: #fef2f2; border-color: #fecaca;">
-            <div class="card-label" style="color: #b91c1c;">Time Traps (&gt;60s & Wrong)</div>
-            <div class="card-value" style="color: #991b1b;">${timeTraps} Questions</div>
-          </div>
-        </div>
-
-        <div class="section-heading">Question-by-Question Solutions & Derivations</div>
-
-        ${questions.map((q, idx) => {
-          const selected = answers[q._id];
-          const isCorrect = selected === q.correctOptionIndex;
-          const time = questionTimes[q._id] || 0;
-
-          return `
-            <div class="q-block">
-              <div class="q-meta">
-                <span>Q${idx + 1} • ${q.subject}</span>
-                <span>Time Spent: ${time}s | Status: ${selected === undefined ? 'Unattempted' : isCorrect ? 'Correct (+2)' : 'Incorrect (-0.5)'}</span>
-              </div>
-              <div class="q-text">${q.questionText}</div>
-              <div class="options-grid">
-                ${q.options.map((opt, i) => {
-                  let cls = 'opt';
-                  if (i === q.correctOptionIndex) cls += ' opt-correct';
-                  else if (selected === i) cls += ' opt-wrong';
-                  return `<div class="${cls}">${String.fromCharCode(65 + i)}. ${opt}</div>`;
-                }).join('')}
-              </div>
-              <div class="exp-box">
-                <strong>Solution / Formula:</strong> ${q.explanation}
-              </div>
-            </div>
-          `;
-        }).join('')}
-
-        <script>
-          window.onload = function() {
-            window.print();
-          };
-        </script>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    setIsGeneratingPdf(false);
   };
-
   const filteredQuestionIndices = questions
     .map((q, idx) => ({ q, idx }))
     .filter(({ q }) => (activeSection === 'All' ? true : q.subject === activeSection))
