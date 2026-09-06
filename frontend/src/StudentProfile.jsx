@@ -42,14 +42,38 @@ export default function StudentProfile() {
     }
   };
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, photoUrl: reader.result });
-      };
-      reader.readAsDataURL(file);
+      const uploadData = new FormData();
+      uploadData.append('photo', file);
+
+      try {
+        setSaving(true);
+        setMessage('');
+        
+        // Send directly to Cloudinary backend route
+        const res = await API.put('/auth/profile-photo', uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (res.data?.success && res.data.user) {
+          setFormData(prev => ({ ...prev, photoUrl: res.data.user.photoUrl }));
+          
+          try {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+          } catch (storageErr) {
+            console.warn('LocalStorage cache skipped, but cloud save succeeded.');
+          }
+
+          setMessage('Profile photo uploaded to cloud successfully!');
+        }
+      } catch (err) {
+        console.error('Photo upload failed:', err);
+        setMessage('Failed to upload photo to cloud.');
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
