@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import API from './api'; // Use centralized API instance
 import Logo from './components/Logo'; // Integrated official logo component
 import {
   LayoutDashboard,
@@ -46,8 +47,18 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   
   const [stats, setStats] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [jobAlerts, setJobAlerts] = useState([]); // Initialized as empty array to prevent crashes
+  
+  // ✅ Initialize currentUser immediately from localStorage so saved names/photos show instantly
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('user');
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [jobAlerts, setJobAlerts] = useState([]); 
   const [recentActivity, setRecentActivity] = useState([]);
 
   // --- Data Fetching ---
@@ -56,20 +67,21 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-
         const [statsRes, jobsRes, activityRes, userRes] = await Promise.all([
-          axios.get('/api/dashboard/stats', config).catch(() => ({ data: null })),
-          axios.get('/api/jobs', config).catch(() => ({ data: { jobs: [] } })),
-          axios.get('/api/dashboard/activity', config).catch(() => ({ data: [] })),
-          axios.get('/api/auth/me', config).catch(() => ({ data: null }))
+          API.get('/dashboard/stats').catch(() => ({ data: null })),
+          API.get('/jobs').catch(() => ({ data: { jobs: [] } })),
+          API.get('/dashboard/activity').catch(() => ({ data: [] })),
+          API.get('/auth/me').catch(() => ({ data: null }))
         ]);
 
         setStats(statsRes.data);
-        setCurrentUser(userRes.data?.user || null);
         
-        // Safely extract jobs array from the backend response structure
+        // Sync user data and cache it securely to localStorage
+        if (userRes.data?.success && userRes.data.user) {
+          setCurrentUser(userRes.data.user);
+          localStorage.setItem('user', JSON.stringify(userRes.data.user));
+        }
+
         const jobsList = jobsRes.data?.jobs || jobsRes.data;
         setJobAlerts(Array.isArray(jobsList) ? jobsList : []);
         setRecentActivity(Array.isArray(activityRes.data) ? activityRes.data : []);

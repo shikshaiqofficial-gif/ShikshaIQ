@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import API from './api';
-import Logo from './components/Logo';
-import { User, Camera, ArrowLeft, CheckCircle, Save, Loader2, BookOpen, MapPin, Calendar, Award } from 'lucide-react';
+import API from './api'; // ⚠️ Must use centralized API instance with token interceptor
+import { User, Camera, ArrowLeft, CheckCircle, Save, Loader2 } from 'lucide-react';
 
 export default function StudentProfile() {
   const navigate = useNavigate();
@@ -33,6 +32,8 @@ export default function StudentProfile() {
       const res = await API.get('/auth/me');
       if (res.data?.success && res.data.user) {
         setFormData(res.data.user);
+        // ✅ Keep localStorage completely synced upon fetching
+        localStorage.setItem('user', JSON.stringify(res.data.user));
       }
     } catch (err) {
       console.error('Failed to load profile:', err);
@@ -41,7 +42,6 @@ export default function StudentProfile() {
     }
   };
 
-  // Convert uploaded image to Base64 for instant preview & storage
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -59,11 +59,18 @@ export default function StudentProfile() {
       setSaving(true);
       setMessage('');
       const res = await API.put('/auth/profile', formData);
-      if (res.data?.success) {
+      if (res.data?.success && res.data.user) {
+        // ✅ 1. Update the local state instantly
+        setFormData(res.data.user);
+
+        // ✅ 2. Update localStorage user cache so Header & Dashboard reflect it immediately
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+
         setMessage('Candidate profile updated successfully!');
       }
     } catch (err) {
-      setMessage('Failed to update profile. Please try again.');
+      console.error('Profile update failed:', err);
+      setMessage('Failed to update profile. Please check your login session.');
     } finally {
       setSaving(false);
     }
@@ -79,7 +86,6 @@ export default function StudentProfile() {
 
   return (
     <div className="min-h-screen bg-[#070b19] text-slate-100 flex flex-col font-sans">
-      {/* Header */}
       <header className="h-16 bg-[#080c1e] border-b border-slate-800 px-6 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <button
@@ -101,7 +107,6 @@ export default function StudentProfile() {
         </button>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-6 sm:p-10 space-y-6">
         {message && (
           <div className="bg-emerald-950/60 border border-emerald-800 p-4 rounded-2xl text-xs font-bold text-emerald-300 flex items-center gap-2">
@@ -110,8 +115,6 @@ export default function StudentProfile() {
         )}
 
         <form onSubmit={handleSubmit} className="bg-[#080c1e] border border-slate-800 rounded-3xl p-6 sm:p-10 space-y-8 shadow-2xl">
-          
-          {/* Photo & Basic Identity Section */}
           <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-slate-800">
             <div className="relative group">
               <div className="w-28 h-28 rounded-2xl bg-slate-800 border-2 border-indigo-500/40 overflow-hidden flex items-center justify-center shadow-lg">
@@ -136,7 +139,6 @@ export default function StudentProfile() {
             </div>
           </div>
 
-          {/* Form Fields Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label className="text-xs font-bold text-slate-300">Full Name</label>
@@ -202,7 +204,7 @@ export default function StudentProfile() {
                 <option value="12th Pass">12th Pass</option>
                 <option value="Graduate">Graduate (B.A/B.Sc/B.Com/B.Tech)</option>
                 <option value="Post Graduate">Post Graduate</option>
-                <option value="Professional Degree">Professional Degree (CA/LLB/MBBS)</option>
+                <option value="Professional Degree">Professional Degree</option>
               </select>
             </div>
 
@@ -217,8 +219,7 @@ export default function StudentProfile() {
                 <option value="SSC CHSL">SSC CHSL</option>
                 <option value="RRB NTPC">RRB NTPC (Railways)</option>
                 <option value="IBPS PO">IBPS PO / Banking</option>
-                <option value="UPSC Civil Services">UPSC Civil Services</option>
-                <option value="State PSC">State PSC</option>
+                <option value="UPSC">UPSC Civil Services</option>
               </select>
             </div>
 
@@ -253,7 +254,6 @@ export default function StudentProfile() {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Candidate Profile
           </button>
-
         </form>
       </main>
     </div>

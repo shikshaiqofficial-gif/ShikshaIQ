@@ -644,84 +644,88 @@ app.get('/api/tests/daily-100-mock', async (req, res) => {
 // Authentication Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, password, targetExam } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    const { name, email, password, targetExam, fullName } = req.body;
+    const userName = name || fullName || 'Aspirant Student';
+    const userEmail = email ? email.toLowerCase().trim() : '';
+
+    if (!userEmail || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
+    const existing = await User.findOne({ email: userEmail });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Email is already registered. Please sign in.' });
     }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = await User.create({
-      name,
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      targetExam: targetExam || 'SSC CGL'
+    
+    const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
+    const user = await User.create({ 
+      name: userName, 
+      email: userEmail, 
+      password: hashedPassword, 
+      targetExam: targetExam || 'SSC CGL' 
     });
 
-    const token = jwt.sign(
-      { id: newUser._id, email: newUser.email, name: newUser.name },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        targetExam: newUser.targetExam
-      }
+    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.status(201).json({ 
+      success: true, 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        targetExam: user.targetExam,
+        photoUrl: user.photoUrl || '',
+        fatherName: user.fatherName || '',
+        motherName: user.motherName || '',
+        dob: user.dob || '',
+        qualification: user.qualification || '',
+        preparationFor: user.preparationFor || '',
+        address: user.address || ''
+      } 
     });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error during registration.' });
+  } catch (err) {
+    console.error('Registration server error:', err);
+    res.status(500).json({ success: false, message: 'Server error during registration.' });
   }
 });
 
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
+    const userEmail = email ? email.toLowerCase().trim() : '';
+
+    if (!userEmail || !password) {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    const user = await User.findOne({ email: userEmail });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(400).json({ success: false, message: 'Invalid email or password.' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ success: false, message: 'Invalid email or password.' });
-    }
-
-    const token = jwt.sign(
-      { id: user._id, email: user.email, name: user.name },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        targetExam: user.targetExam
-      }
+    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({ 
+      success: true, 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        targetExam: user.targetExam,
+        photoUrl: user.photoUrl || '',
+        fatherName: user.fatherName || '',
+        motherName: user.motherName || '',
+        dob: user.dob || '',
+        qualification: user.qualification || '',
+        preparationFor: user.preparationFor || '',
+        address: user.address || ''
+      } 
     });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error during login.' });
+  } catch (err) {
+    console.error('Login server error:', err);
+    res.status(500).json({ success: false, message: 'Server error during login.' });
   }
 });
 
