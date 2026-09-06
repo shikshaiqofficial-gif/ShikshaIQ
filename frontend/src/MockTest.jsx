@@ -349,7 +349,7 @@ export default function MockTest() {
 
           // Draw faint background logo in the center of the page
           doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.05 })); // 5% faint watermark
+          doc.setGState(new doc.GState({ opacity: 0.20 })); // 5% faint watermark
           doc.addImage(imgData, 'PNG', pageWidth / 2 - 35, pageHeight / 2 - 35, 70, 70);
           doc.restoreGraphicsState();
         } catch (e) {
