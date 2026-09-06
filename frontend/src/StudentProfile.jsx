@@ -63,8 +63,12 @@ export default function StudentProfile() {
         // ✅ 1. Update the local state instantly
         setFormData(res.data.user);
 
-        // ✅ 2. Update localStorage user cache so Header & Dashboard reflect it immediately
-        localStorage.setItem('user', JSON.stringify(res.data.user));
+        // ✅ 2. Safely update localStorage with quota protection
+        try {
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+        } catch (storageErr) {
+          console.warn('Image is too large for localStorage cache, but saved securely to database.');
+        }
 
         setMessage('Candidate profile updated successfully!');
       }
@@ -75,7 +79,6 @@ export default function StudentProfile() {
       setSaving(false);
     }
   };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#070b19] flex items-center justify-center text-indigo-400 font-bold">
