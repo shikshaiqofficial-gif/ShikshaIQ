@@ -644,6 +644,85 @@ app.get('/api/tests/daily-100-mock', async (req, res) => {
     });
   }
 });
+
+const PDFDocument = require('pdfkit');
+
+// Download Mock Test Performance Report PDF
+app.get('/api/mock-tests/:id/download-pdf', verifyToken, async (req, res) => {
+  try {
+    const testResult = await MockTestResult.findById(req.params.id);
+    if (!testResult) {
+      return res.status(404).json({ success: false, message: 'Test result not found.' });
+    }
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    // Set response headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=ShikshaIQ_Report_${req.params.id}.pdf`);
+    doc.pipe(res);
+
+    // Helper function for Watermark and Footer on every page
+    const applyBranding = () => {
+      // Background Watermark Logo in the middle
+      doc.save();
+      doc.opacity(0.06);
+      doc.fontSize(60).fillColor('#4f46e5');
+      doc.text('ShikshaIQ', 150, 400, { align: 'center', angle: -30 });
+      doc.restore();
+
+      // Footer on every page
+      doc.save();
+      doc.fontSize(9).fillColor('#64748b');
+      doc.text('www.shikshaIQ.com — Empowering Competitive Exam Aspirants', 50, 800, { align: 'width' });
+      doc.restore();
+    };
+
+    // Apply branding to the first page
+    applyBranding();
+
+    // Trigger branding whenever a new page is automatically added
+    doc.on('pageAdded', () => {
+      applyBranding();
+    });
+
+    // Report Header
+    doc.fontSize(22).fillColor('#0f172a').font('Helvetica-Bold').text('ShikshaIQ Scorecard', { align: 'center' });
+    doc.fontSize(10).fillColor('#4f46e5').text('Official Mock Test Performance Dossier', { align: 'center' });
+    doc.moveDown(2);
+
+    // Student & Test Metadata Box
+    doc.rect(50, 130, 495, 70).fillAndStroke('#f8fafc', '#e2e8f0');
+    doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold').text(`Candidate ID: ${testResult.shikshaId || 'SIQ-2026'}`, 70, 145);
+    doc.text(`Target Exam: ${testResult.targetExam || 'SSC CGL'}`, 330, 145);
+    doc.font('Helvetica').text(`Score Obtained: ${testResult.score} / ${testResult.totalMarks}`, 70, 170);
+    doc.text(`Accuracy: ${testResult.accuracy || '78'}%`, 330, 170);
+    
+    doc.moveDown(4);
+
+    // Section Breakdown Header
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0f172a').text('Detailed Question Review & Explanations');
+    doc.moveDown(1);
+
+    // Loop through questions and answers
+    if (Array.isArray(testResult.questions)) {
+      testResult.questions.forEach((q, idx) => {
+        if (doc.y > 700) doc.addPage(); // Auto page break
+
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b').text(`Q${idx + 1}: ${q.questionText}`);
+        doc.fontSize(9).font('Helvetica').fillColor('#475569').text(`Your Answer: ${q.userAnswer} | Correct: ${q.correctAnswer}`);
+        doc.fontSize(9).font('Helvetica-Oblique').fillColor('#047857').text(`Explanation: ${q.explanation || 'Refer to concept notes.'}`);
+        doc.moveDown(1);
+      });
+    }
+
+    doc.end();
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate PDF report.' });
+  }
+});
+
 // ----------------------------------------------------
 // DASHBOARD STATS & ACTIVITY ENDPOINTS
 // ----------------------------------------------------
