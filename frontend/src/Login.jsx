@@ -1,22 +1,40 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
+import API from './api';
 import Logo from './components/Logo';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    setError('');
+
+    try {
+      const res = await API.post('/auth/login', {
+        email: identifier.trim(),
+        password
+      });
+
+      if (res.data?.success && res.data.token) {
+        // Save token and user object securely to localStorage
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || 'Invalid credentials. Please check your email and password.');
+    } finally {
       setLoading(false);
-      navigate('/dashboard');
-    }, 800);
+    }
   };
 
   return (
@@ -40,18 +58,25 @@ export default function Login() {
         >
           <div className="space-y-1">
             <h2 className="text-xl font-black text-white">Welcome Back Aspirant</h2>
-            <p className="text-xs text-slate-400">Sign in with your Email or ShikshaIQ ID.</p>
+            <p className="text-xs text-slate-400">Sign in with your registered email.</p>
           </div>
+
+          {error && (
+            <div className="p-3 bg-rose-950/60 border border-rose-800 rounded-xl text-xs text-rose-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Email or ShikshaIQ ID</label>
+              <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
                 <input
-                  type="text"
+                  type="email"
                   required
-                  placeholder="name@gmail.com or SIQ-2026-XXXX"
+                  placeholder="name@gmail.com"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
@@ -77,7 +102,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-bold rounded-xl transition shadow-lg shadow-orange-600/20 text-sm flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-bold rounded-xl transition shadow-lg shadow-orange-600/20 text-sm flex items-center justify-center gap-2 mt-2 cursor-pointer"
             >
               {loading ? <span className="animate-pulse">Signing In...</span> : <>Sign In to Dashboard <ArrowRight className="w-4 h-4" /></>}
             </button>

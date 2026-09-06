@@ -1,38 +1,51 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
+import API from './api';
 import Logo from './components/Logo';
-import { User, Mail, Phone, Calendar, Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Calendar, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function Register() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [registeredData, setRegisteredData] = useState(null);
+  const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
     fullName: '',
-    dob: '',
-    phone: '',
     email: '',
-    gmailAccount: '',
-    password: ''
+    password: '',
+    targetExam: 'SSC CGL'
   });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
-    setTimeout(() => {
+    try {
+      const res = await API.post('/auth/register', {
+        name: formData.fullName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        targetExam: formData.targetExam
+      });
+
+      if (res.data?.success && res.data.token) {
+        // Save token and user object securely to localStorage
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError(err.response?.data?.message || 'Registration failed. Email might already be in use.');
+    } finally {
       setLoading(false);
-      // Generate Unique ShikshaIQ ID
-      const randomNum = Math.floor(1000 + Math.random() * 9000);
-      const uniqueId = `SIQ-2026-${randomNum}`;
-      setRegisteredData({ ...formData, shikshaId: uniqueId });
-    }, 1000);
+    }
   };
 
   return (
@@ -52,153 +65,98 @@ export default function Register() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-md bg-[#0b132b] border border-slate-800 rounded-3xl p-8 shadow-2xl relative"
+          className="w-full max-w-md bg-[#0b132b] border border-slate-800 rounded-3xl p-8 shadow-2xl relative space-y-6"
         >
-          {registeredData ? (
-            <div className="text-center space-y-6 py-4">
-              <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black text-white">Registration Successful!</h2>
-                <p className="text-xs text-slate-400">Welcome aboard, {registeredData.fullName}. Your account is ready.</p>
-              </div>
+          <div className="space-y-1">
+            <h2 className="text-xl font-black text-white">Create Student Account</h2>
+            <p className="text-xs text-slate-400">Join ShikshaIQ to start your exam preparation.</p>
+          </div>
 
-              <div className="p-4 bg-[#070b19] rounded-2xl border border-indigo-500/30 space-y-1">
-                <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-400">Your Unique ShikshaIQ ID</span>
-                <div className="text-xl font-mono font-black text-orange-400 tracking-wider">
-                  {registeredData.shikshaId}
-                </div>
-                <p className="text-[11px] text-slate-500">Save this ID for all exam sessions & leaderboards.</p>
-              </div>
-
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition shadow-lg shadow-indigo-900/40 text-sm flex items-center justify-center gap-2"
-              >
-                Go to Student Dashboard <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-xl font-black text-white">Create Student Account</h2>
-                <p className="text-xs text-slate-400">Fill in your details to get your unique ShikshaIQ ID.</p>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                    <input
-                      type="text"
-                      name="fullName"
-                      required
-                      placeholder="e.g. Rahul Sharma"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Date of Birth</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                      <input
-                        type="date"
-                        name="dob"
-                        required
-                        value={formData.dob}
-                        onChange={handleChange}
-                        className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-9 py-3 text-xs text-white focus:outline-none focus:border-indigo-500 transition"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Phone Number</label>
-                    <div className="relative">
-                      <Phone className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                      <input
-                        type="tel"
-                        name="phone"
-                        required
-                        placeholder="9876543210"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Gmail Account</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                    <input
-                      type="email"
-                      name="gmailAccount"
-                      required
-                      placeholder="student@gmail.com"
-                      value={formData.gmailAccount}
-                      onChange={handleChange}
-                      className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Primary Email ID</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                    <input
-                      type="email"
-                      name="email"
-                      required
-                      placeholder="yourname@domain.com"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                    <input
-                      type="password"
-                      name="password"
-                      required
-                      placeholder="••••••••"
-                      value={formData.password}
-                      onChange={handleChange}
-                      className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-bold rounded-xl transition shadow-lg shadow-orange-600/20 text-sm flex items-center justify-center gap-2 mt-2"
-                >
-                  {loading ? <span className="animate-pulse">Generating ID...</span> : <>Generate ShikshaIQ ID & Register <ArrowRight className="w-4 h-4" /></>}
-                </button>
-              </form>
-
-              <div className="text-center pt-2">
-                <span className="text-xs text-slate-400">Already have an account? </span>
-                <Link to="/login" className="text-xs font-bold text-indigo-400 hover:underline">Sign In</Link>
-              </div>
+          {error && (
+            <div className="p-3 bg-rose-950/60 border border-rose-800 rounded-xl text-xs text-rose-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                <input
+                  type="text"
+                  name="fullName"
+                  required
+                  placeholder="e.g. Rahul Sharma"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="student@gmail.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Target Exam</label>
+              <select
+                name="targetExam"
+                value={formData.targetExam}
+                onChange={handleChange}
+                className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition cursor-pointer"
+              >
+                <option value="SSC CGL">SSC CGL</option>
+                <option value="SSC CHSL">SSC CHSL</option>
+                <option value="RRB NTPC">RRB NTPC (Railways)</option>
+                <option value="IBPS PO">IBPS PO / Banking</option>
+                <option value="UPSC">UPSC Civil Services</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full bg-[#070b19] border border-slate-800 rounded-xl px-10 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-bold rounded-xl transition shadow-lg shadow-orange-600/20 text-sm flex items-center justify-center gap-2 mt-2 cursor-pointer"
+            >
+              {loading ? <span className="animate-pulse">Creating Account...</span> : <>Register & Open Dashboard <ArrowRight className="w-4 h-4" /></>}
+            </button>
+          </form>
+
+          <div className="text-center pt-2">
+            <span className="text-xs text-slate-400">Already have an account? </span>
+            <Link to="/login" className="text-xs font-bold text-indigo-400 hover:underline">Sign In</Link>
+          </div>
         </motion.div>
       </main>
 

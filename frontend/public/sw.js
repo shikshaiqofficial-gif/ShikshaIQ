@@ -35,8 +35,15 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: Network-first for navigation with offline fallback
+// Fetch: Bypass all API requests entirely so Axios handles them directly
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // 🛑 Crucial Fix: Never intercept API calls or external domains (Render backend)
+  if (url.pathname.startsWith('/api/') || event.request.url.includes('onrender.com')) {
+    return;
+  }
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
@@ -62,7 +69,7 @@ self.addEventListener('fetch', (event) => {
         });
         return networkResponse;
       }).catch(() => {
-        // Suppress unhandled network error logs for peripheral resources
+        // Suppress unhandled network errors
       });
     })
   );
