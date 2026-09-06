@@ -663,22 +663,24 @@ app.get('/api/mock-tests/:id/download-pdf', verifyToken, async (req, res) => {
     doc.pipe(res);
 
     // Robust Branding Function for EVERY Page
-    const applyBranding = () => {
-      // 1. Center Watermark Logo in the middle of A4 (Width: 595, Height: 842)
-      doc.save();
-      doc.translate(297, 421); // Move to exact center of A4
-      doc.rotate(-35);          // Diagonal tilt
-      doc.fontSize(60).fillColor('#4f46e5');
-      doc.opacity(0.04);        // Faint background watermark
-      doc.text('ShikshaIQ', -150, -20, { align: 'center', width: 300, lineBreak: false });
-      doc.restore();
+const applyBranding = () => {
+  try {
+    // 1. Center Watermark Logo in the middle of A4 (Width: 595, Height: 842)
+    const logoPath = path.join(__dirname, 'logo.png');
+    doc.image(logoPath, 172, 320, {
+      width: 250,
+      opacity: 0.05 // Very faint background watermark effect
+    });
+  } catch (err) {
+    console.warn('Watermark logo.png not found locally, skipping image watermark.');
+  }
 
-      // 2. Footer at the bottom of every page
-      doc.save();
-      doc.fontSize(9).fillColor('#64748b');
-      doc.text('www.shikshaIQ.com — Empowering Competitive Exam Aspirants', 50, 810, { align: 'center', width: 495, lineBreak: false });
-      doc.restore();
-    };
+  // 2. Footer at the bottom of every page
+  doc.save();
+  doc.fontSize(9).fillColor('#64748b');
+  doc.text('www.shikshaIQ.com — Empowering Competitive Exam Aspirants', 50, 810, { align: 'center', width: 495, lineBreak: false });
+  doc.restore();
+};
 
     // 1. Register listener BEFORE any pages/content are written so it catches all future pages
     doc.on('pageAdded', () => {
